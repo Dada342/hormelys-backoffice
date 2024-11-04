@@ -18,8 +18,14 @@ app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
+
+// Servir les fichiers statiques du dossier public
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Servir les images du dossier uploads
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Routes de l'application
 app.use('/api', indexRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/articles', articlesRouter);
