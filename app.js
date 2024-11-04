@@ -13,12 +13,7 @@ const articlesRouter = require('./routes/articles');
 var app = express();
 const cors = require('cors');
 
-// Configuration des en-têtes CORS pour autoriser le domaine https://www.hormelys.com
-app.use(cors({
-    origin: 'https://www.hormelys.com',
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    credentials: true
-}));
+app.use(cors());
 
 app.use(logger('dev'));
 app.use(express.json());
@@ -28,13 +23,7 @@ app.use(cookieParser());
 // Servir les fichiers statiques du dossier public
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Servir les images du dossier uploads
-app.use('/uploads', (req, res, next) => {
-    res.setHeader('Access-Control-Allow-Origin', 'https://www.hormelys.com');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    next();
-}, express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
 
 // Routes de l'application
 app.use('/api', indexRouter);
