@@ -1,6 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
+const { v4: uuidv4 } = require('uuid'); // Pour générer des noms uniques pour les fichiers
 const router = express.Router();
 const Article = require('../models/Article');
 const authMiddleware = require('../middlewares/authMiddleware');
@@ -12,23 +13,30 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Configuration de Multer pour le stockage Cloudinary
-const storage = new CloudinaryStorage({
-    cloudinary: cloudinary,
-    params: {
-        folder: 'articles',
-        allowed_formats: ['jpg', 'jpeg', 'png'],
-    },
-});
-
+// Configuration de multer pour le stockage local temporaire
+const storage = multer.memoryStorage(); // Utilisation de la mémoire pour stocker les fichiers temporairement
 const upload = multer({ storage });
 
 // Route pour créer un nouvel article avec une image
 router.post('/', upload.single('image'), async (req, res) => {
     try {
-        console.log('Fichier uploadé :', req.file); // Vérifiez si l'image est bien reçue
         const { title, description, content, category, published } = req.body;
-        const imageUrl = req.file ? req.file.path : null; // Obtenir l'URL de l'image depuis Cloudinary
+        let imageUrl = null;
+
+        // Si une image est fournie, la télécharger sur Cloudinary
+        if (req.file) {
+            const uniqueFilename = `${uuidv4()}-${req.file.originalname}`;
+            const result = await cloudinary.uploader.upload_stream(
+                { public_id: `articles/${uniqueFilename}` },
+                (error, result) => {
+                    if (error) {
+                        throw new Error(`Cloudinary error: ${error.message}`);
+                    }
+                    imageUrl = result.secure_url;
+                }
+            );
+            req.file.stream.pipe(result);
+        }
 
         const newArticle = new Article({
             title,
@@ -52,7 +60,6 @@ router.post('/', upload.single('image'), async (req, res) => {
 router.get('/', async (req, res) => {
     try {
         const articles = await Article.find();
-        console.log('Articles:', articles); // Vérifiez que chaque article a bien un `imageUrl`
         res.json(articles);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -74,7 +81,21 @@ router.get('/:id', async (req, res) => {
 router.put('/:id', upload.single('image'), async (req, res) => {
     try {
         const { title, description, content, category, published } = req.body;
-        const imageUrl = req.file ? req.file.path : null; // URL de l'image sur Cloudinary
+        let imageUrl = null;
+
+        if (req.file) {
+            const uniqueFilename = `${uuidv4()}-${req.file.originalname}`;
+            const result = await cloudinary.uploader.upload_stream(
+                { public_id: `articles/${uniqueFilename}` },
+                (error, result) => {
+                    if (error) {
+                        throw new Error(`Cloudinary error: ${error.message}`);
+                    }
+                    imageUrl = result.secure_url;
+                }
+            );
+            req.file.stream.pipe(result);
+        }
 
         const updatedArticle = await Article.findByIdAndUpdate(req.params.id, {
             title,
@@ -119,5 +140,3 @@ router.delete('/:id', async (req, res) => {
 });
 
 module.exports = router;
-
-
