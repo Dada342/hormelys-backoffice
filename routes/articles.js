@@ -19,7 +19,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // Créer un nouvel article avec un fichier (par exemple une image)
-router.post('/', authMiddleware, upload.single('image'), async (req, res) => {
+router.post('/', upload.single('image'), async (req, res) => {
     try {
         const { title, description, content, category, published } = req.body;
         const imageUrl = req.file ? `/uploads/${req.file.filename}` : null; // Obtenir le chemin de l'image si elle est fournie
@@ -65,7 +65,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Mettre à jour un article avec un fichier (par exemple une image)
-router.put('/:id', authMiddleware, upload.single('image'), async (req, res) => {
+router.put('/:id', upload.single('image'), async (req, res) => {
     try {
         const { title, description, content, category, published } = req.body;
         const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
@@ -86,7 +86,7 @@ router.put('/:id', authMiddleware, upload.single('image'), async (req, res) => {
 });
 
 // Dépublier un article
-router.put('/:id/unpublish', authMiddleware, async (req, res) => {
+router.put('/:id/unpublish', async (req, res) => {
     try {
         const updatedArticle = await Article.findByIdAndUpdate(
             req.params.id,
@@ -104,7 +104,7 @@ router.put('/:id/unpublish', authMiddleware, async (req, res) => {
 
 
 // Supprimer un article
-router.delete('/:id', authMiddleware, async (req, res) => {
+router.delete('/:id', async (req, res) => {
     try {
         await Article.findByIdAndDelete(req.params.id);
         res.json({ message: 'Article deleted successfully' });

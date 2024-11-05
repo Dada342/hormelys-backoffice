@@ -13,7 +13,17 @@ const articlesRouter = require('./routes/articles');
 var app = express();
 const cors = require('cors');
 
-app.use(cors());
+// Configuration de CORS
+const corsOptions = {
+    origin: ['http://localhost:3001', 'https://hormelys-backoffice.vercel.app'], // Origines autorisées
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true, // Si des cookies sont nécessaires
+};
+
+// Middleware CORS avec les options spécifiées
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // Pour répondre aux pré-requêtes OPTIONS
 
 app.use(logger('dev'));
 app.use(express.json());
@@ -22,7 +32,6 @@ app.use(cookieParser());
 
 // Servir les fichiers statiques du dossier public
 app.use(express.static(path.join(__dirname, 'public')));
-
 app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
 
 // Routes de l'application
@@ -31,4 +40,5 @@ app.use('/api/users', usersRouter);
 app.use('/api/articles', articlesRouter);
 
 module.exports = app;
+
 
