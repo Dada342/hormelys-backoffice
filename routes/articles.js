@@ -12,7 +12,7 @@ const storage = multer.diskStorage({
     },
     filename: function (req, file, cb) {
         const safeFileName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_'); // Remplace les caractères spéciaux par des underscores
-        cb(null, `${Date.now()}-${file.originalname}`);
+        cb(null, `${Date.now()}-${safeFileName}`);
     }
 });
 
@@ -21,6 +21,7 @@ const upload = multer({ storage });
 // Créer un nouvel article avec un fichier (par exemple une image)
 router.post('/', upload.single('image'), async (req, res) => {
     try {
+        console.log('Fichier uploadé :', req.file); // Vérifiez si l'image est bien reçue
         const { title, description, content, category, published } = req.body;
         const imageUrl = req.file ? `/uploads/${req.file.filename}` : null; // Obtenir le chemin de l'image si elle est fournie
 
