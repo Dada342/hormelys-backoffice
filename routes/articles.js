@@ -127,7 +127,7 @@ router.put('/:id/unpublish', async (req, res) => {
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
-});
+}) ;
 
 // Supprimer un article
 router.delete('/:id', async (req, res) => {
