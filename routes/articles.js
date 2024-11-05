@@ -1,19 +1,26 @@
 const express = require('express');
 const multer = require('multer');
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const cloudinary = require('cloudinary').v2;
 const router = express.Router();
 const Article = require('../models/Article');
 const authMiddleware = require('../middlewares/authMiddleware');
-const path = require('path');
 
-// Configuration de multer pour enregistrer les fichiers
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, path.join(__dirname, '..', 'public', 'uploads')); // Utilisez un chemin absolu pour éviter les erreurs
+// Configuration Cloudinary
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// Configuration de multer avec Cloudinary
+const storage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+        folder: 'articles', // Dossier sur Cloudinary où les images seront stockées
+        format: async (req, file) => 'jpg', // Format d'image (optionnel)
+        public_id: (req, file) => `${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_')}`, // Nom sécurisé
     },
-    filename: function (req, file, cb) {
-        const safeFileName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_'); // Remplace les caractères spéciaux par des underscores
-        cb(null, `${Date.now()}-${safeFileName}`);
-    }
 });
 
 const upload = multer({ storage });
@@ -21,9 +28,9 @@ const upload = multer({ storage });
 // Créer un nouvel article avec un fichier (par exemple une image)
 router.post('/', upload.single('image'), async (req, res) => {
     try {
-        console.log('Fichier uploadé :', req.file); // Vérifiez si l'image est bien reçue
+        console.log('Fichier uploadé sur Cloudinary :', req.file); // Vérifiez si l'image est bien reçue
         const { title, description, content, category, published } = req.body;
-        const imageUrl = req.file ? `/uploads/${req.file.filename}` : null; // Obtenir le chemin de l'image si elle est fournie
+        const imageUrl = req.file ? req.file.path : null; // URL de l'image sur Cloudinary
 
         const newArticle = new Article({
             title,
@@ -69,7 +76,7 @@ router.get('/:id', async (req, res) => {
 router.put('/:id', upload.single('image'), async (req, res) => {
     try {
         const { title, description, content, category, published } = req.body;
-        const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
+        const imageUrl = req.file ? req.file.path : null; // URL de l'image sur Cloudinary
 
         const updatedArticle = await Article.findByIdAndUpdate(req.params.id, {
             title,
@@ -103,7 +110,6 @@ router.put('/:id/unpublish', async (req, res) => {
     }
 });
 
-
 // Supprimer un article
 router.delete('/:id', async (req, res) => {
     try {
@@ -115,4 +121,5 @@ router.delete('/:id', async (req, res) => {
 });
 
 module.exports = router;
+
 
