@@ -12,7 +12,7 @@
             "dest": "app.js"
         }
     ],
-    "buildCommand": "npm install --legacy-peer-deps && npm run build",
+    "buildCommand": "yarn install && yarn build",
     "env": {
         "MONGODB_URI": "@mongodb_uri",
         "JWT_SECRET": "@jwt_secret",
