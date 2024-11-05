@@ -6,31 +6,30 @@ const router = express.Router();
 const Article = require('../models/Article');
 const authMiddleware = require('../middlewares/authMiddleware');
 
-// Configuration Cloudinary
+// Configuration de Cloudinary
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
     api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Configuration de multer avec Cloudinary
+// Configuration de Multer pour le stockage Cloudinary
 const storage = new CloudinaryStorage({
     cloudinary: cloudinary,
     params: {
-        folder: 'articles', // Dossier sur Cloudinary où les images seront stockées
-        format: async (req, file) => 'jpg', // Format d'image (optionnel)
-        public_id: (req, file) => `${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_')}`, // Nom sécurisé
+        folder: 'articles',
+        allowed_formats: ['jpg', 'jpeg', 'png'],
     },
 });
 
 const upload = multer({ storage });
 
-// Créer un nouvel article avec un fichier (par exemple une image)
+// Route pour créer un nouvel article avec une image
 router.post('/', upload.single('image'), async (req, res) => {
     try {
-        console.log('Fichier uploadé sur Cloudinary :', req.file); // Vérifiez si l'image est bien reçue
+        console.log('Fichier uploadé :', req.file); // Vérifiez si l'image est bien reçue
         const { title, description, content, category, published } = req.body;
-        const imageUrl = req.file ? req.file.path : null; // URL de l'image sur Cloudinary
+        const imageUrl = req.file ? req.file.path : null; // Obtenir l'URL de l'image depuis Cloudinary
 
         const newArticle = new Article({
             title,
@@ -45,7 +44,7 @@ router.post('/', upload.single('image'), async (req, res) => {
         console.log('URL de l\'image enregistrée :', newArticle.imageUrl);
         res.status(201).json(newArticle);
     } catch (error) {
-        console.error("Error creating article:", error);
+        console.error("Erreur lors de la création de l'article :", error);
         res.status(500).json({ error: error.message });
     }
 });
