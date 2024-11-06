@@ -15,7 +15,7 @@ const cors = require('cors');
 
 // Configuration de CORS
 const corsOptions = {
-    origin: ['http://localhost:3001', 'https://hormelys-backoffice.vercel.app', 'https://hormelys.com', 'https://www.hormelys.com'], // Origines autorisées
+    origin: ['http://localhost:3001', 'https://hormelys-backoffice.onrender.com', 'https://hormelys.com', 'https://www.hormelys.com'], // Origines autorisées
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true, // Si des cookies sont nécessaires
