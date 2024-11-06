@@ -42,7 +42,21 @@ router.post('/', upload.single('image'), async (req, res) => {
 
         // Si une image est fournie, la télécharger sur Cloudinary
         if (req.file) {
-            imageUrl = await uploadToCloudinary(req.file);
+            const uniqueFilename = `${uuidv4()}-${req.file.originalname}`;
+            const uploadResult = await new Promise((resolve, reject) => {
+                const uploadStream = cloudinary.uploader.upload_stream(
+                    { public_id: `articles/${uniqueFilename}` },
+                    (error, result) => {
+                        if (error) {
+                            reject(new Error(`Cloudinary error: ${error.message}`));
+                        } else {
+                            resolve(result);
+                        }
+                    }
+                );
+                uploadStream.end(req.file.buffer);
+            });
+            imageUrl = uploadResult.secure_url; // Utilisez secure_url ici
         }
 
         const newArticle = new Article({
@@ -59,9 +73,10 @@ router.post('/', upload.single('image'), async (req, res) => {
         res.status(201).json(newArticle);
     } catch (error) {
         console.error("Erreur lors de la création de l'article :", error);
-        res.status(500).json({ error: error });
+        res.status(500).json({ error: error.message });
     }
 });
+
 
 // Récupérer tous les articles
 router.get('/', async (req, res) => {
