@@ -17,6 +17,23 @@ cloudinary.config({
 const storage = multer.memoryStorage(); // Utilisation de la mémoire pour stocker les fichiers temporairement
 const upload = multer({ storage });
 
+// Fonction utilitaire pour uploader l'image sur Cloudinary
+const uploadToCloudinary = (file) => {
+    return new Promise((resolve, reject) => {
+        const uniqueFilename = `${uuidv4()}-${file.originalname}`;
+        const uploadStream = cloudinary.uploader.upload_stream(
+            { public_id: `articles/${uniqueFilename}` },
+            (error, result) => {
+                if (error) {
+                    return reject(`Cloudinary error: ${error.message}`);
+                }
+                resolve(result.secure_url);
+            }
+        );
+        uploadStream.end(file.buffer);
+    });
+};
+
 // Route pour créer un nouvel article avec une image
 router.post('/', upload.single('image'), async (req, res) => {
     try {
@@ -25,17 +42,7 @@ router.post('/', upload.single('image'), async (req, res) => {
 
         // Si une image est fournie, la télécharger sur Cloudinary
         if (req.file) {
-            const uniqueFilename = `${uuidv4()}-${req.file.originalname}`;
-            const result = await cloudinary.uploader.upload_stream(
-                { public_id: `articles/${uniqueFilename}` },
-                (error, result) => {
-                    if (error) {
-                        throw new Error(`Cloudinary error: ${error.message}`);
-                    }
-                    imageUrl = result.secure_url;
-                }
-            );
-            req.file.stream.pipe(result);
+            imageUrl = await uploadToCloudinary(req.file);
         }
 
         const newArticle = new Article({
@@ -52,7 +59,7 @@ router.post('/', upload.single('image'), async (req, res) => {
         res.status(201).json(newArticle);
     } catch (error) {
         console.error("Erreur lors de la création de l'article :", error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: error });
     }
 });
 
@@ -84,17 +91,7 @@ router.put('/:id', upload.single('image'), async (req, res) => {
         let imageUrl = null;
 
         if (req.file) {
-            const uniqueFilename = `${uuidv4()}-${req.file.originalname}`;
-            const result = await cloudinary.uploader.upload_stream(
-                { public_id: `articles/${uniqueFilename}` },
-                (error, result) => {
-                    if (error) {
-                        throw new Error(`Cloudinary error: ${error.message}`);
-                    }
-                    imageUrl = result.secure_url;
-                }
-            );
-            req.file.stream.pipe(result);
+            imageUrl = await uploadToCloudinary(req.file);
         }
 
         const updatedArticle = await Article.findByIdAndUpdate(req.params.id, {
@@ -127,7 +124,7 @@ router.put('/:id/unpublish', async (req, res) => {
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
-}) ;
+});
 
 // Supprimer un article
 router.delete('/:id', async (req, res) => {
