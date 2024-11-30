@@ -8,6 +8,7 @@ const ArticleSchema = new mongoose.Schema({
     category: { type: String },
     published: { type: Boolean, default: false },
     imageUrl: { type: String },
+    views: { type: Number, default: 0 },
 });
 
 module.exports = mongoose.model('Article', ArticleSchema);
