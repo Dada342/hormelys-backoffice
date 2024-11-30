@@ -77,18 +77,50 @@ router.post('/', upload.single('image'), async (req, res) => {
     }
 });
 
-
-// Récupérer tous les articles
-router.get('/', async (req, res) => {
+// Récupérer les articles populaires (PLACER CETTE ROUTE AVANT `/api/articles/:id`)
+router.get('/popular', async (req, res) => {
     try {
-        const articles = await Article.find();
-        res.json(articles);
+        console.log("Requête reçue pour récupérer les articles populaires");
+
+        // Récupérer les articles avec plus d'une vue
+        const popularArticles = await Article.find({ views: { $gt: 1 } }).sort({ views: -1 });
+
+        if (!popularArticles || popularArticles.length === 0) {
+            console.log("Aucun article populaire trouvé.");
+            return res.status(404).json({ message: 'Aucun article populaire trouvé' });
+        }
+
+        console.log("Nombre d'articles populaires trouvés :", popularArticles.length);
+        res.status(200).json(popularArticles);
+    } catch (error) {
+        console.error("Erreur lors de la récupération des articles populaires :", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Incrémenter le nombre de vues d'un article (PLACER CETTE ROUTE AVANT `/api/articles/:id`)
+router.put('/:id/views', async (req, res) => {
+    try {
+        const articleId = req.params.id;
+
+        // Incrémenter le champ "views" de l'article spécifié
+        const updatedArticle = await Article.findByIdAndUpdate(
+            articleId,
+            { $inc: { views: 1 } }, // Utilisation de $inc pour incrémenter "views" de 1
+            { new: true }
+        );
+
+        if (!updatedArticle) {
+            return res.status(404).json({ message: 'Article non trouvé' });
+        }
+
+        res.status(200).json(updatedArticle);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
-// Récupérer un article par ID
+// Récupérer un article par ID (PLACER CETTE ROUTE APRÈS LES AUTRES ROUTES SPÉCIFIQUES)
 router.get('/:id', async (req, res) => {
     try {
         const article = await Article.findById(req.params.id);
@@ -151,39 +183,15 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
-// Incrémenter le nombre de vues d'un article
-router.put('/:id/views', async (req, res) => {
+// Récupérer tous les articles
+router.get('/', async (req, res) => {
     try {
-        const articleId = req.params.id;
-
-        // Incrémenter le champ "views" de l'article spécifié
-        const updatedArticle = await Article.findByIdAndUpdate(
-            articleId,
-            { $inc: { views: 1 } }, // Utilisation de $inc pour incrémenter "views" de 1
-            { new: true }
-        );
-
-        if (!updatedArticle) {
-            return res.status(404).json({ message: 'Article non trouvé' });
-        }
-
-        res.status(200).json(updatedArticle);
+        const articles = await Article.find();
+        res.json(articles);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
-
-// Récupérer les articles populaires
-router.get('/popular', async (req, res) => {
-    try {
-        // Définir un seuil pour la popularité, par exemple plus de 100 vues
-        const popularArticles = await Article.find({ views: { $gt: 1 } }).sort({ views: -1 });
-
-        res.status(200).json(popularArticles);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
 
 module.exports = router;
+
