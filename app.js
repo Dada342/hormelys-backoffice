@@ -9,6 +9,8 @@ require("./models/connection");
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
 const articlesRouter = require('./routes/articles');
+const reviewsRouter = require('./routes/reviews');
+
 
 var app = express();
 const cors = require('cors');
@@ -43,6 +45,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
 app.use('/api', indexRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/articles', articlesRouter);
+app.use('/api/reviews', reviewsRouter);
 
 module.exports = app;
 
