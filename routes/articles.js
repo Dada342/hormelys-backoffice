@@ -183,15 +183,36 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
-// Récupérer tous les articles
+// Récupérer tous les articles avec des filtres dynamiques
 router.get('/', async (req, res) => {
     try {
-        const articles = await Article.find();
-        res.json(articles);
+        const { category, sort, limit } = req.query;
+
+        // Construire la requête dynamique
+        const query = {};
+        if (category) {
+            query.category = category;
+        }
+
+        // Construire les options de tri
+        let sortOption = {};
+        if (sort) {
+            const [field, order] = sort.split(':');
+            sortOption[field] = order === 'desc' ? -1 : 1;
+        }
+
+        // Limiter le nombre de résultats
+        const articles = await Article.find(query)
+            .sort(sortOption)
+            .limit(parseInt(limit) || 0); // 0 signifie pas de limite si aucun paramètre "limit" n'est passé
+
+        res.status(200).json(articles);
     } catch (error) {
+        console.error("Erreur lors de la récupération des articles :", error);
         res.status(500).json({ error: error.message });
     }
 });
+
 
 module.exports = router;
 
