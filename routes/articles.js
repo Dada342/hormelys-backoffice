@@ -131,8 +131,32 @@ router.get('/:id', async (req, res) => {
     }
 });
 
+// Basculer le statut de publication d'un article (toggle) - DOIT ÊTRE AVANT /:id
+router.put('/:id/toggle-publish', authMiddleware, async (req, res) => {
+    try {
+        const { published } = req.body;
+        console.log(`Toggle publish pour article ${req.params.id}: ${published}`);
+        
+        const updatedArticle = await Article.findByIdAndUpdate(
+            req.params.id,
+            { published: published },
+            { new: true }
+        );
+        
+        if (!updatedArticle) {
+            return res.status(404).json({ message: 'Article not found' });
+        }
+        
+        console.log(`Article mis à jour:`, updatedArticle);
+        res.json(updatedArticle);
+    } catch (error) {
+        console.error('Erreur lors du basculement du statut:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Mettre à jour un article avec un fichier (par exemple une image)
-router.put('/:id', upload.single('image'), async (req, res) => {
+router.put('/:id', authMiddleware, upload.single('image'), async (req, res) => {
     try {
         const { title, description, content, category, published } = req.body;
         let imageUrl = null;
