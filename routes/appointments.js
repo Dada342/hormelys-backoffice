@@ -4,6 +4,14 @@ const Appointment = require('../models/Appointment');
 const nodemailer = require('nodemailer');
 
 // Configuration SMTP IONOS avec mot de passe d'application
+console.log('=== Configuration SMTP en production ===');
+console.log('SMTP_HOST:', process.env.SMTP_HOST);
+console.log('SMTP_PORT:', process.env.SMTP_PORT);
+console.log('SMTP_USER:', process.env.SMTP_USER);
+console.log('SMTP_PASS:', process.env.SMTP_PASS ? 'DÉFINI' : 'NON DÉFINI');
+console.log('SMTP_FROM:', process.env.SMTP_FROM);
+console.log('NATUROPATH_EMAIL:', process.env.NATUROPATH_EMAIL);
+
 const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: parseInt(process.env.SMTP_PORT),
@@ -11,6 +19,15 @@ const transporter = nodemailer.createTransport({
     auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS
+    },
+    debug: true, // Active les logs détaillés en production
+    logger: true,
+    // Options supplémentaires pour la production
+    connectionTimeout: 60000,
+    greetingTimeout: 30000,
+    socketTimeout: 60000,
+    tls: {
+        rejectUnauthorized: false
     }
 });
 
@@ -47,9 +64,7 @@ const sendConfirmationEmails = async (appointment) => {
                                 <table cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff !important; padding: 20px; border-radius: 10px;">
                                     <tr>
                                         <td align="center" style="background-color: #ffffff !important; padding: 10px;">
-                                            <div style="background-color: #ffffff !important; padding: 15px; border: 2px solid #ffffff; border-radius: 8px;">
-                                                <img src="https://www.hormelys.com/assets/logohormelys1.webp" alt="Hormelys - Naturopathie" width="200" height="auto" style="max-width: 200px; height: auto; display: block; background-color: #ffffff !important; border: none; outline: none;">
-                                            </div>
+                                            <img src="${process.env.FRONTEND_URL || 'https://www.hormelys.com'}/public/assets/Logo-Hormelys-fond-blanc.webp" alt="Hormelys - Naturopathie" width="200" height="auto" style="max-width: 200px; height: auto; display: block; border: none; outline: none;">
                                         </td>
                                     </tr>
                                 </table>
