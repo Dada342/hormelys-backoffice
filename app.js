@@ -10,6 +10,7 @@ var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
 const articlesRouter = require('./routes/articles');
 const reviewsRouter = require('./routes/reviews');
+const appointmentsRouter = require('./routes/appointments');
 
 
 var app = express();
@@ -18,7 +19,8 @@ const cors = require('cors');
 // Configuration de CORS
 const corsOptions = {
     origin: [
-        'http://localhost:3001',
+        'http://localhost:3000', // Frontend Next.js
+        'http://localhost:3001', // Backend Express
         'https://hormelys-backoffice.onrender.com',
         'https://hormelys.com',
         'https://www.hormelys.com'
@@ -46,6 +48,7 @@ app.use('/api', indexRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/articles', articlesRouter);
 app.use('/api/reviews', reviewsRouter);
+app.use('/api/appointments', appointmentsRouter);
 
 module.exports = app;
 
