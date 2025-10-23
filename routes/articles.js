@@ -136,17 +136,28 @@ router.put('/:id/toggle-publish', authMiddleware, async (req, res) => {
     try {
         const { published } = req.body;
         console.log(`Toggle publish pour article ${req.params.id}: ${published}`);
-        
-        const updatedArticle = await Article.findByIdAndUpdate(
-            req.params.id,
-            { published: published },
-            { new: true }
-        );
-        
-        if (!updatedArticle) {
+
+        // Récupérer l'article actuel pour vérifier s'il a déjà été publié
+        const currentArticle = await Article.findById(req.params.id);
+        if (!currentArticle) {
             return res.status(404).json({ message: 'Article not found' });
         }
-        
+
+        // Préparer les champs à mettre à jour
+        const updateFields = { published: published };
+
+        // Si on publie l'article pour la première fois, définir publishedDate
+        if (published && !currentArticle.publishedDate) {
+            updateFields.publishedDate = new Date();
+            console.log('Première publication - définition de publishedDate');
+        }
+
+        const updatedArticle = await Article.findByIdAndUpdate(
+            req.params.id,
+            updateFields,
+            { new: true }
+        );
+
         console.log(`Article mis à jour:`, updatedArticle);
         res.json(updatedArticle);
     } catch (error) {
