@@ -210,12 +210,18 @@ router.delete('/:id', async (req, res) => {
 // Récupérer tous les articles avec des filtres dynamiques
 router.get('/', async (req, res) => {
     try {
-        const { category, sort, limit } = req.query;
+        const { category, sort, limit, published } = req.query;
 
         // Construire la requête dynamique
         const query = {};
         if (category) {
             query.category = category;
+        }
+
+        // Filtrer par statut de publication si spécifié
+        // Si published n'est pas fourni, on retourne tous les articles (comportement pour l'admin)
+        if (published !== undefined) {
+            query.published = published === 'true';
         }
 
         // Construire les options de tri
