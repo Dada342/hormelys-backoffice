@@ -169,21 +169,40 @@ router.put('/:id/toggle-publish', authMiddleware, async (req, res) => {
 // Mettre à jour un article avec un fichier (par exemple une image)
 router.put('/:id', authMiddleware, upload.single('image'), async (req, res) => {
     try {
-        const { title, description, content, category, published } = req.body;
+        const { title, description, content, category, published, publishedDate } = req.body;
         let imageUrl = null;
 
         if (req.file) {
             imageUrl = await uploadToCloudinary(req.file);
         }
 
-        const updatedArticle = await Article.findByIdAndUpdate(req.params.id, {
+        // Préparer les champs à mettre à jour
+        const updateFields = {
             title,
             description,
             content,
             category,
             published,
             ...(imageUrl && { imageUrl })
-        }, { new: true });
+        };
+
+        // Si une date de publication est fournie, l'utiliser
+        // Sinon, si on publie l'article, utiliser la date actuelle
+        if (publishedDate) {
+            updateFields.publishedDate = new Date(publishedDate);
+        } else if (published === 'true' || published === true) {
+            // Vérifier si l'article a déjà une publishedDate
+            const currentArticle = await Article.findById(req.params.id);
+            if (!currentArticle.publishedDate) {
+                updateFields.publishedDate = new Date();
+            }
+        }
+
+        const updatedArticle = await Article.findByIdAndUpdate(
+            req.params.id,
+            updateFields,
+            { new: true }
+        );
 
         res.json(updatedArticle);
     } catch (error) {
