@@ -4,7 +4,7 @@ var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 
-require("./models/connection");
+const connectDB = require("./models/connection");
 
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
@@ -38,6 +38,17 @@ app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
+
+// Middleware pour assurer que MongoDB est connecté avant de traiter les requêtes
+app.use(async (req, res, next) => {
+    try {
+        await connectDB();
+        next();
+    } catch (error) {
+        console.error('Erreur de connexion MongoDB:', error);
+        res.status(500).json({ message: 'Erreur de connexion à la base de données' });
+    }
+});
 
 // Servir les fichiers statiques du dossier public
 app.use(express.static(path.join(__dirname, 'public')));
