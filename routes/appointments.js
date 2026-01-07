@@ -31,6 +31,15 @@ const transporter = nodemailer.createTransport({
     }
 });
 
+// Test de connexion SMTP au démarrage
+transporter.verify(function(error, success) {
+    if (error) {
+        console.error('❌ ERREUR de connexion SMTP:', error);
+    } else {
+        console.log('✅ Serveur SMTP prêt à envoyer des emails');
+    }
+});
+
 // Fonction pour envoyer les emails avec nodemailer
 const sendConfirmationEmails = async (appointment) => {
     const { firstName, lastName, email, phone, date, time } = appointment;
@@ -64,7 +73,7 @@ const sendConfirmationEmails = async (appointment) => {
                                 <table cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff !important; padding: 20px; border-radius: 10px;">
                                     <tr>
                                         <td align="center" style="background-color: #ffffff !important; padding: 10px;">
-                                            <img src="${process.env.FRONTEND_URL || 'https://www.hormelys.com'}/public/assets/Logo-Hormelys-fond-blanc.webp" alt="Hormelys - Naturopathie" width="200" height="auto" style="max-width: 200px; height: auto; display: block; border: none; outline: none;">
+                                            <img src="${process.env.FRONTEND_URL || 'https://www.hormelys.com'}/assets/logohormelys1.webp" alt="Hormelys - Naturopathie" width="200" height="auto" style="max-width: 200px; height: auto; display: block; border: none; outline: none;">
                                         </td>
                                     </tr>
                                 </table>
@@ -283,19 +292,30 @@ const sendConfirmationEmails = async (appointment) => {
     };
     
     try {
+        console.log('=== Tentative d\'envoi des emails de confirmation ===');
+        console.log('Email client vers:', email);
+        console.log('Email naturopathe vers:', process.env.NATUROPATH_EMAIL);
+
         // Envoyer l'email client d'abord
-        await transporter.sendMail(clientEmailOptions);
-        console.log('Email client envoyé avec succès');
-        
+        console.log('Envoi de l\'email client...');
+        const clientResult = await transporter.sendMail(clientEmailOptions);
+        console.log('✅ Email client envoyé avec succès:', clientResult.messageId);
+
         // Attendre 2 secondes puis envoyer l'email naturopathe
         await new Promise(resolve => setTimeout(resolve, 2000));
-        await transporter.sendMail(naturopathEmailOptions);
-        console.log('Email naturopathe envoyé avec succès');
-        
-        console.log('Tous les emails de confirmation envoyés avec succès');
+        console.log('Envoi de l\'email naturopathe...');
+        const naturopathResult = await transporter.sendMail(naturopathEmailOptions);
+        console.log('✅ Email naturopathe envoyé avec succès:', naturopathResult.messageId);
+
+        console.log('=== Tous les emails de confirmation envoyés avec succès ===');
         return true;
     } catch (error) {
-        console.error('Erreur lors de l\'envoi des emails:', error);
+        console.error('❌ ERREUR lors de l\'envoi des emails:');
+        console.error('Type d\'erreur:', error.name);
+        console.error('Message:', error.message);
+        console.error('Code:', error.code);
+        console.error('Response:', error.response);
+        console.error('Stack:', error.stack);
         // Même en cas d'erreur d'email, la réservation est valide
         return false;
     }
