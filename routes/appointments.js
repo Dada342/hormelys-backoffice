@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Appointment = require('../models/Appointment');
 const nodemailer = require('nodemailer');
+const verifyRecaptcha = require('../middleware/recaptchaMiddleware');
 
 // Configuration SMTP IONOS avec mot de passe d'application
 console.log('=== Configuration SMTP en production ===');
@@ -345,8 +346,8 @@ router.get('/availability', async (req, res) => {
     }
 });
 
-// POST /api/appointments/book - Réserver un créneau
-router.post('/book', async (req, res) => {
+// POST /api/appointments/book - Réserver un créneau (avec vérification reCAPTCHA)
+router.post('/book', verifyRecaptcha, async (req, res) => {
     try {
         const { firstName, lastName, email, phone, date, time, type = 'discovery_call' } = req.body;
         
