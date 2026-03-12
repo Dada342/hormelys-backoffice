@@ -11,6 +11,8 @@ var usersRouter = require('./routes/users');
 const articlesRouter = require('./routes/articles');
 const reviewsRouter = require('./routes/reviews');
 const appointmentsRouter = require('./routes/appointments');
+const availabilityRouter = require('./routes/availability');
+const cronRouter = require('./routes/cron');
 
 
 var app = express();
@@ -60,6 +62,8 @@ app.use('/api/users', usersRouter);
 app.use('/api/articles', articlesRouter);
 app.use('/api/reviews', reviewsRouter);
 app.use('/api/appointments', appointmentsRouter);
+app.use('/api/availability', availabilityRouter);
+app.use('/api/cron', cronRouter);
 
 module.exports = app;
 

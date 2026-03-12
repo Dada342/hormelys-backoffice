@@ -5,6 +5,12 @@ const axios = require('axios');
  * Score attendu : 0.5 ou plus (0.0 = bot, 1.0 = humain)
  */
 async function verifyRecaptcha(req, res, next) {
+    // En développement, bypass la vérification reCAPTCHA
+    if (process.env.NODE_ENV === 'development') {
+        console.log('⚠️ reCAPTCHA bypassed en mode développement');
+        return next();
+    }
+
     const { recaptchaToken } = req.body;
 
     // Si pas de token, rejeter la requête

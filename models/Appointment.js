@@ -32,8 +32,16 @@ const appointmentSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        enum: ['discovery_call', 'consultation', 'follow_up'],
+        enum: ['discovery_call', 'first_session', 'follow_up'],
         default: 'discovery_call'
+    },
+    price: {
+        type: Number,
+        default: 0 // 0 pour discovery_call, 65 pour first_session, 55 pour follow_up
+    },
+    endTime: {
+        type: String, // Format: HH:MM — heure de fin calculée selon la durée
+        default: ''
     },
     status: {
         type: String,
@@ -52,6 +60,15 @@ const appointmentSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    reminderSent: {
+        type: Boolean,
+        default: false
+    },
+    cancellationToken: {
+        type: String,
+        unique: true,
+        sparse: true
+    },
     createdAt: {
         type: Date,
         default: Date.now
@@ -62,8 +79,8 @@ const appointmentSchema = new mongoose.Schema({
     }
 });
 
-// Index unique pour empêcher les réservations multiples du même créneau
-appointmentSchema.index({ date: 1, time: 1 }, { unique: true });
+// Index pour rechercher efficacement les RDV par date
+appointmentSchema.index({ date: 1, time: 1 });
 
 // Middleware pour mettre à jour updatedAt
 appointmentSchema.pre('save', function(next) {
@@ -84,14 +101,29 @@ appointmentSchema.methods.getFormattedDateTime = function() {
     });
 };
 
-// Méthode pour vérifier si le créneau est disponible
+// Méthode pour vérifier si le créneau est disponible (appels découverte — logique simple)
 appointmentSchema.statics.isSlotAvailable = async function(date, time) {
-    const existingAppointment = await this.findOne({ 
-        date, 
-        time, 
-        status: { $ne: 'cancelled' } 
+    const existingAppointment = await this.findOne({
+        date,
+        time,
+        status: { $ne: 'cancelled' }
     });
     return !existingAppointment;
+};
+
+/**
+ * Vérifie si une plage horaire est libre (pas de chevauchement avec d'autres RDV)
+ * Utilisé pour les consultations cabinet avec durées variables
+ */
+appointmentSchema.statics.isTimeRangeAvailable = async function(date, startTime, endTime) {
+    const overlapping = await this.findOne({
+        date,
+        status: { $ne: 'cancelled' },
+        // Un RDV existant chevauche si son début < notre fin ET sa fin > notre début
+        time: { $lt: endTime },
+        endTime: { $gt: startTime }
+    });
+    return !overlapping;
 };
 
 module.exports = mongoose.model('Appointment', appointmentSchema);
