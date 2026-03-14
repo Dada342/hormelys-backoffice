@@ -4,8 +4,103 @@ const crypto = require('crypto');
 const Appointment = require('../models/Appointment');
 const AvailabilitySlot = require('../models/AvailabilitySlot');
 const nodemailer = require('nodemailer');
+const { google } = require('googleapis');
 const verifyRecaptcha = require('../middleware/recaptchaMiddleware');
 const authMiddleware = require('../middlewares/authMiddleware');
+
+/**
+ * Configuration Google Calendar API (compte de service)
+ */
+let calendar = null;
+try {
+    const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY || '{}');
+    if (credentials.client_email) {
+        const auth = new google.auth.GoogleAuth({
+            credentials,
+            scopes: ['https://www.googleapis.com/auth/calendar'],
+        });
+        calendar = google.calendar({ version: 'v3', auth });
+        console.log('✅ Google Calendar API configurée');
+    } else {
+        console.warn('⚠️ GOOGLE_SERVICE_ACCOUNT_KEY non configurée — synchronisation Google Calendar désactivée');
+    }
+} catch (error) {
+    console.error('❌ Erreur configuration Google Calendar:', error.message);
+}
+
+const GOOGLE_CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID || 'nathalia.laffont@gmail.com';
+
+/**
+ * Crée un événement dans Google Agenda de la naturopathe
+ */
+async function createGoogleCalendarEvent(appointment) {
+    if (!calendar) return null;
+
+    const { firstName, lastName, email, phone, date, time, endTime, type, notes } = appointment;
+    const config = SESSION_CONFIG[type] || SESSION_CONFIG.discovery_call;
+    const isConsultation = type === 'first_session' || type === 'follow_up';
+
+    const event = {
+        summary: isConsultation
+            ? `${config.label} — ${firstName} ${lastName}`
+            : `Appel découverte — ${firstName} ${lastName}`,
+        description: [
+            `Client : ${firstName} ${lastName}`,
+            `Email : ${email}`,
+            `Téléphone : ${phone}`,
+            `Type : ${config.label}`,
+            isConsultation ? `Tarif : ${config.price}€` : null,
+            notes ? `\nRaison de la venue :\n${notes}` : null,
+        ].filter(Boolean).join('\n'),
+        location: isConsultation
+            ? 'Pôle Santé de Gignac - Box 203, 2e étage, 280 avenue de Lodève, 34150 GIGNAC'
+            : `Appel téléphonique — ${phone}`,
+        start: {
+            dateTime: `${date}T${time}:00`,
+            timeZone: 'Europe/Paris',
+        },
+        end: {
+            dateTime: `${date}T${endTime}:00`,
+            timeZone: 'Europe/Paris',
+        },
+        reminders: {
+            useDefault: false,
+            overrides: [
+                { method: 'popup', minutes: 60 },
+                { method: 'popup', minutes: 1440 },
+            ],
+        },
+    };
+
+    try {
+        const result = await calendar.events.insert({
+            calendarId: GOOGLE_CALENDAR_ID,
+            resource: event,
+        });
+        console.log('✅ Événement Google Calendar créé:', result.data.id);
+        return result.data.id;
+    } catch (error) {
+        console.error('❌ Erreur création événement Google Calendar:', error.message);
+        return null;
+    }
+}
+
+/**
+ * Supprime un événement Google Calendar par son ID
+ */
+async function deleteGoogleCalendarEvent(googleEventId) {
+    if (!calendar || !googleEventId) return;
+
+    try {
+        await calendar.events.delete({
+            calendarId: GOOGLE_CALENDAR_ID,
+            eventId: googleEventId,
+        });
+        console.log('✅ Événement Google Calendar supprimé:', googleEventId);
+    } catch (error) {
+        console.error('❌ Erreur suppression événement Google Calendar:', error.message);
+    }
+}
 
 /**
  * Durées et tarifs par type de séance
@@ -25,6 +120,66 @@ function addMinutes(timeStr, minutes) {
     const newH = Math.floor(totalMinutes / 60).toString().padStart(2, '0');
     const newM = (totalMinutes % 60).toString().padStart(2, '0');
     return `${newH}:${newM}`;
+}
+
+/**
+ * Génère un fichier .ics (iCalendar) pour un rendez-vous
+ */
+function generateICS(appointment) {
+    const { firstName, lastName, date, time, endTime, type, duration } = appointment;
+    const config = SESSION_CONFIG[type] || SESSION_CONFIG.discovery_call;
+    const isConsultation = type === 'first_session' || type === 'follow_up';
+
+    // Convertir date "2026-03-20" et time "10:00" en format iCal "20260320T100000"
+    const dtStart = date.replace(/-/g, '') + 'T' + time.replace(/:/g, '') + '00';
+    const dtEnd = date.replace(/-/g, '') + 'T' + endTime.replace(/:/g, '') + '00';
+    const now = new Date();
+    const dtStamp = now.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+
+    const summary = isConsultation
+        ? `Consultation Naturopathie - Hormelys`
+        : `Appel Découverte - Hormelys`;
+
+    const location = isConsultation
+        ? `Pôle Santé de Gignac - Box 203\\, 2e étage\\, 280 avenue de Lodève\\, 34150 GIGNAC`
+        : `Appel téléphonique`;
+
+    const description = isConsultation
+        ? `${config.label} avec Nathalia Laffont\\nLieu : Pôle Santé de Gignac - Box 203\\, 2e étage\\nPensez à apporter :\\n- Vos dernières analyses biologiques\\n- La liste de vos traitements en cours\\nRèglement : ${config.price}€ (espèces\\, chèque ou virement)`
+        : `Rendez-vous découverte gratuit de 30 minutes avec Nathalia Laffont\\nNathalia vous appellera au numéro que vous avez fourni.`;
+
+    // UID unique pour l'événement
+    const uid = `${appointment._id}@hormelys.com`;
+
+    return [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//Hormelys//Rendez-vous//FR',
+        'CALSCALE:GREGORIAN',
+        'METHOD:PUBLISH',
+        'BEGIN:VEVENT',
+        `UID:${uid}`,
+        `DTSTAMP:${dtStamp}`,
+        `DTSTART;TZID=Europe/Paris:${dtStart}`,
+        `DTEND;TZID=Europe/Paris:${dtEnd}`,
+        `SUMMARY:${summary}`,
+        `DESCRIPTION:${description}`,
+        `LOCATION:${location}`,
+        `ORGANIZER;CN=Nathalia Laffont:mailto:${process.env.NATUROPATH_EMAIL || 'contact@hormelys.com'}`,
+        'STATUS:CONFIRMED',
+        'BEGIN:VALARM',
+        'TRIGGER:-PT1H',
+        'ACTION:DISPLAY',
+        'DESCRIPTION:Rappel rendez-vous Hormelys dans 1 heure',
+        'END:VALARM',
+        'BEGIN:VALARM',
+        'TRIGGER:-P1D',
+        'ACTION:DISPLAY',
+        'DESCRIPTION:Rappel rendez-vous Hormelys demain',
+        'END:VALARM',
+        'END:VEVENT',
+        'END:VCALENDAR'
+    ].join('\r\n');
 }
 
 // Configuration SMTP IONOS avec mot de passe d'application
@@ -91,11 +246,21 @@ const sendConfirmationEmails = async (appointment) => {
         ? `Nouvelle consultation réservée - ${config.label}`
         : 'Nouveau rendez-vous découverte réservé';
 
+    // Générer le fichier .ics pour le patient
+    const icsContent = generateICS(appointment);
+
     // Email pour le client
     const clientEmailOptions = {
         from: process.env.SMTP_FROM,
         to: email,
         subject: subjectClient,
+        attachments: [
+            {
+                filename: 'rendez-vous-hormelys.ics',
+                content: icsContent,
+                contentType: 'text/calendar; charset=utf-8; method=PUBLISH'
+            }
+        ],
         html: `
             <!DOCTYPE html>
             <html>
@@ -512,6 +677,12 @@ router.post('/book', verifyRecaptcha, async (req, res) => {
 
         await appointment.save();
 
+        // Créer l'événement dans Google Agenda de la naturopathe
+        const googleEventId = await createGoogleCalendarEvent(appointment);
+        if (googleEventId) {
+            appointment.googleEventId = googleEventId;
+        }
+
         // Envoyer les emails de confirmation
         const emailSent = await sendConfirmationEmails(appointment);
 
@@ -593,6 +764,9 @@ router.put('/cancel-by-token/:token', async (req, res) => {
 
         appointment.status = 'cancelled';
         await appointment.save();
+
+        // Supprimer l'événement du Google Agenda de la naturopathe
+        await deleteGoogleCalendarEvent(appointment.googleEventId);
 
         // Notifier la naturopathe de l'annulation
         const appointmentDate = new Date(appointment.date + 'T' + appointment.time);
@@ -701,12 +875,15 @@ router.put('/:id/cancel', async (req, res) => {
             { status: 'cancelled', updatedAt: new Date() },
             { new: true }
         );
-        
+
         if (!appointment) {
             return res.status(404).json({ message: 'Rendez-vous non trouvé' });
         }
-        
-        res.json({ 
+
+        // Supprimer l'événement du Google Agenda
+        await deleteGoogleCalendarEvent(appointment.googleEventId);
+
+        res.json({
             message: 'Rendez-vous annulé avec succès',
             appointment 
         });

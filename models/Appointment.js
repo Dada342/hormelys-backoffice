@@ -69,6 +69,10 @@ const appointmentSchema = new mongoose.Schema({
         unique: true,
         sparse: true
     },
+    googleEventId: {
+        type: String,
+        default: ''
+    },
     createdAt: {
         type: Date,
         default: Date.now
