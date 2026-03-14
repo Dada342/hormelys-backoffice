@@ -4,6 +4,7 @@ const cloudinary = require('cloudinary').v2;
 const { v4: uuidv4 } = require('uuid'); // Pour générer des noms uniques pour les fichiers
 const router = express.Router();
 const Article = require('../models/Article');
+const { generateSlug } = require('../models/Article');
 const authMiddleware = require('../middlewares/authMiddleware');
 
 // Configuration de Cloudinary
@@ -120,6 +121,41 @@ router.put('/:id/views', async (req, res) => {
     }
 });
 
+// Récupérer un article par slug
+router.get('/slug/:slug', async (req, res) => {
+    try {
+        const article = await Article.findOne({ slug: req.params.slug });
+        if (!article) return res.status(404).json({ message: 'Article not found' });
+        res.json(article);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Migration : générer les slugs pour tous les articles existants
+router.post('/migrate-slugs', authMiddleware, async (req, res) => {
+    try {
+        const articles = await Article.find({ $or: [{ slug: { $exists: false } }, { slug: null }, { slug: '' }] });
+        let updated = 0;
+
+        for (const article of articles) {
+            let slug = generateSlug(article.title);
+            // Vérifier l'unicité
+            const existing = await Article.findOne({ slug, _id: { $ne: article._id } });
+            if (existing) {
+                slug = `${slug}-${article._id.toString().slice(-6)}`;
+            }
+            article.slug = slug;
+            await article.save();
+            updated++;
+        }
+
+        res.json({ message: `${updated} articles mis à jour avec un slug.` });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Récupérer un article par ID (PLACER CETTE ROUTE APRÈS LES AUTRES ROUTES SPÉCIFIQUES)
 router.get('/:id', async (req, res) => {
     try {
@@ -176,33 +212,29 @@ router.put('/:id', authMiddleware, upload.single('image'), async (req, res) => {
             imageUrl = await uploadToCloudinary(req.file);
         }
 
-        // Préparer les champs à mettre à jour
-        const updateFields = {
-            title,
-            description,
-            content,
-            category,
-            published,
-            ...(imageUrl && { imageUrl })
-        };
-
-        // Si une date de publication est fournie, l'utiliser
-        // Sinon, si on publie l'article, utiliser la date actuelle
-        if (publishedDate) {
-            updateFields.publishedDate = new Date(publishedDate);
-        } else if (published === 'true' || published === true) {
-            // Vérifier si l'article a déjà une publishedDate
-            const currentArticle = await Article.findById(req.params.id);
-            if (!currentArticle.publishedDate) {
-                updateFields.publishedDate = new Date();
-            }
+        // Récupérer l'article actuel
+        const currentArticle = await Article.findById(req.params.id);
+        if (!currentArticle) {
+            return res.status(404).json({ message: 'Article not found' });
         }
 
-        const updatedArticle = await Article.findByIdAndUpdate(
-            req.params.id,
-            updateFields,
-            { new: true }
-        );
+        // Mettre à jour les champs
+        currentArticle.title = title;
+        currentArticle.description = description;
+        currentArticle.content = content;
+        currentArticle.category = category;
+        currentArticle.published = published;
+        if (imageUrl) currentArticle.imageUrl = imageUrl;
+
+        // Gestion de la date de publication
+        if (publishedDate) {
+            currentArticle.publishedDate = new Date(publishedDate);
+        } else if ((published === 'true' || published === true) && !currentArticle.publishedDate) {
+            currentArticle.publishedDate = new Date();
+        }
+
+        // Le middleware pre('save') régénère le slug si le titre a changé
+        const updatedArticle = await currentArticle.save();
 
         res.json(updatedArticle);
     } catch (error) {
