@@ -69,6 +69,7 @@ const sendConfirmationEmails = async (appointment) => {
     const { firstName, lastName, email, phone, date, time, type, duration, price, endTime, cancellationToken, notes } = appointment;
     const frontendUrl = process.env.FRONTEND_URL || 'https://www.hormelys.com';
     const cancellationUrl = `${frontendUrl}/rendez-vous/annulation?token=${cancellationToken}`;
+    const rescheduleUrl = `${frontendUrl}/rendez-vous/reprogrammer?token=${cancellationToken}`;
     const config = SESSION_CONFIG[type] || SESSION_CONFIG.discovery_call;
 
     // Format de la date pour l'affichage
@@ -205,7 +206,12 @@ const sendConfirmationEmails = async (appointment) => {
                     </div>
 
                     <div style="text-align: center; margin: 25px 0;">
-                        <a href="${cancellationUrl}" style="display: inline-block; padding: 12px 30px; background-color: #dc3545; color: #ffffff; text-decoration: none; border-radius: 8px; font-size: 14px; font-weight: bold;">
+                        <a href="${rescheduleUrl}" style="display: inline-block; padding: 12px 30px; background-color: #2C6E63; color: #ffffff; text-decoration: none; border-radius: 8px; font-size: 14px; font-weight: bold; margin-right: 10px;">
+                            Reprogrammer mon rendez-vous
+                        </a>
+                    </div>
+                    <div style="text-align: center; margin: 10px 0 25px 0;">
+                        <a href="${cancellationUrl}" style="display: inline-block; padding: 10px 24px; background-color: transparent; color: #dc3545; text-decoration: none; border-radius: 8px; font-size: 13px; font-weight: bold; border: 2px solid #dc3545;">
                             Annuler mon rendez-vous
                         </a>
                     </div>
