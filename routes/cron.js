@@ -286,4 +286,35 @@ router.get('/send-reminders', verifyCronSecret, async (req, res) => {
     }
 });
 
+/**
+ * GET /api/cron/cleanup
+ * Supprime les rendez-vous annulés de plus de 3 mois
+ * Protégé par CRON_SECRET
+ */
+router.get('/cleanup', verifyCronSecret, async (req, res) => {
+    try {
+        const threeMonthsAgo = new Date();
+        threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+        const cutoffDate = threeMonthsAgo.toISOString().split('T')[0];
+
+        console.log(`=== CRON: Nettoyage des RDV annulés avant le ${cutoffDate} ===`);
+
+        const result = await Appointment.deleteMany({
+            status: 'cancelled',
+            date: { $lt: cutoffDate }
+        });
+
+        console.log(`✅ ${result.deletedCount} rendez-vous annulé(s) supprimé(s)`);
+
+        res.json({
+            message: `Nettoyage terminé`,
+            deleted: result.deletedCount,
+            cutoffDate
+        });
+    } catch (error) {
+        console.error('❌ Erreur CRON cleanup:', error);
+        res.status(500).json({ message: 'Erreur lors du nettoyage' });
+    }
+});
+
 module.exports = router;
