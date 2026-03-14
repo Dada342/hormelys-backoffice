@@ -13,7 +13,13 @@ const authMiddleware = require('../middlewares/authMiddleware');
  */
 let calendar = null;
 try {
-    const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY || '{}');
+    // Supporte le JSON brut ou encodé en Base64 (pour éviter les problèmes de \n sur Vercel)
+    const rawKey = process.env.GOOGLE_SERVICE_ACCOUNT_KEY || '{}';
+    let credentialsJson = rawKey;
+    if (!rawKey.startsWith('{')) {
+        credentialsJson = Buffer.from(rawKey, 'base64').toString('utf-8');
+    }
+    const credentials = JSON.parse(credentialsJson);
     if (credentials.client_email) {
         const auth = new google.auth.GoogleAuth({
             credentials,
