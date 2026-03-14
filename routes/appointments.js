@@ -135,41 +135,28 @@ const sendConfirmationEmails = async (appointment) => {
                     
                     <div style="background-color: #f8f9fa; padding: 25px; border-radius: 12px; margin: 25px 0; border-left: 5px solid #A13D6C;">
                         <h3 style="margin-top: 0; color: #A13D6C; font-size: 18px;">
-                            📅 Détails de votre rendez-vous :
+                            Détails de votre rendez-vous
                         </h3>
-                        <table style="width: 100%; border-collapse: collapse;">
-                            <tr>
-                                <td style="padding: 8px 0; font-weight: bold; color: #555;">📅 Date :</td>
-                                <td style="padding: 8px 0; color: #333;">${formattedDate}</td>
-                            </tr>
-                            <tr>
-                                <td style="padding: 8px 0; font-weight: bold; color: #555;">🕐 Heure :</td>
-                                <td style="padding: 8px 0; color: #333;">${time}</td>
-                            </tr>
-                            <tr>
-                                <td style="padding: 8px 0; font-weight: bold; color: #555;">⏱️ Durée :</td>
-                                <td style="padding: 8px 0; color: #333;">${durationLabel}</td>
-                            </tr>
-                            <tr>
-                                <td style="padding: 8px 0; font-weight: bold; color: #555;">📋 Type :</td>
-                                <td style="padding: 8px 0; color: #333;">${typeLabel}</td>
-                            </tr>
-                            ${isConsultation ? `
-                            <tr>
-                                <td style="padding: 8px 0; font-weight: bold; color: #555;">💶 Tarif :</td>
-                                <td style="padding: 8px 0; color: #333;">${price}€</td>
-                            </tr>
-                            <tr>
-                                <td style="padding: 8px 0; font-weight: bold; color: #555;">📍 Lieu :</td>
-                                <td style="padding: 8px 0; color: #333;">Pôle Santé de Gignac - Box 203, 2e étage<br>280 avenue de Lodève - 34150 GIGNAC</td>
-                            </tr>
-                            ` : `
-                            <tr>
-                                <td style="padding: 8px 0; font-weight: bold; color: #555;">📱 Votre numéro :</td>
-                                <td style="padding: 8px 0; color: #333;">${phone}</td>
-                            </tr>
-                            `}
-                        </table>
+                        <p style="margin: 12px 0 6px 0; color: #555; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Date</p>
+                        <p style="margin: 0; color: #333; font-size: 16px; font-weight: bold;">${formattedDate}</p>
+
+                        <p style="margin: 16px 0 6px 0; color: #555; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Horaire</p>
+                        <p style="margin: 0; color: #333; font-size: 16px; font-weight: bold;">${time} → ${endTime} (${durationLabel})</p>
+
+                        <p style="margin: 16px 0 6px 0; color: #555; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Type</p>
+                        <p style="margin: 0; color: #333; font-size: 16px; font-weight: bold;">${typeLabel}</p>
+
+                        ${isConsultation ? `
+                        <p style="margin: 16px 0 6px 0; color: #555; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Tarif</p>
+                        <p style="margin: 0; color: #333; font-size: 16px; font-weight: bold;">${price}€</p>
+
+                        <p style="margin: 16px 0 6px 0; color: #555; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Lieu</p>
+                        <p style="margin: 0; color: #333; font-size: 16px; font-weight: bold;">Pôle Santé de Gignac — Box 203, 2e étage</p>
+                        <p style="margin: 4px 0 0 0; color: #555; font-size: 14px;">280 avenue de Lodève — 34150 GIGNAC</p>
+                        ` : `
+                        <p style="margin: 16px 0 6px 0; color: #555; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Votre numéro</p>
+                        <p style="margin: 0; color: #333; font-size: 16px; font-weight: bold;">${phone}</p>
+                        `}
                     </div>
                     
                     ${isConsultation ? `
@@ -285,26 +272,16 @@ const sendConfirmationEmails = async (appointment) => {
                     
                     <div style="background-color: #f8f9fa; padding: 25px; border-radius: 12px; margin: 25px 0; border-left: 5px solid #28a745;">
                         <h3 style="margin-top: 0; color: #28a745; font-size: 18px;">
-                            👤 Informations du client :
+                            Informations du client
                         </h3>
-                        <table style="width: 100%; border-collapse: collapse;">
-                            <tr>
-                                <td style="padding: 8px 0; font-weight: bold; color: #555; width: 30%;">Prénom :</td>
-                                <td style="padding: 8px 0; color: #333;">${firstName}</td>
-                            </tr>
-                            <tr>
-                                <td style="padding: 8px 0; font-weight: bold; color: #555;">Nom :</td>
-                                <td style="padding: 8px 0; color: #333;">${lastName}</td>
-                            </tr>
-                            <tr>
-                                <td style="padding: 8px 0; font-weight: bold; color: #555;">Email :</td>
-                                <td style="padding: 8px 0; color: #333;">${email}</td>
-                            </tr>
-                            <tr>
-                                <td style="padding: 8px 0; font-weight: bold; color: #555;">Téléphone :</td>
-                                <td style="padding: 8px 0; color: #333; font-weight: bold;">${phone}</td>
-                            </tr>
-                        </table>
+                        <p style="margin: 12px 0 6px 0; color: #555; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Nom</p>
+                        <p style="margin: 0; color: #333; font-size: 16px; font-weight: bold;">${firstName} ${lastName}</p>
+
+                        <p style="margin: 16px 0 6px 0; color: #555; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Email</p>
+                        <p style="margin: 0; color: #333; font-size: 16px;">${email}</p>
+
+                        <p style="margin: 16px 0 6px 0; color: #555; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Téléphone</p>
+                        <p style="margin: 0; color: #333; font-size: 16px; font-weight: bold;">${phone}</p>
                     </div>
 
                     ${notes ? `
@@ -318,32 +295,21 @@ const sendConfirmationEmails = async (appointment) => {
 
                     <div style="background-color: #e3f2fd; padding: 25px; border-radius: 12px; margin: 25px 0; border-left: 5px solid #2196f3;">
                         <h3 style="margin-top: 0; color: #2196f3; font-size: 18px;">
-                            📅 Détails du rendez-vous :
+                            Détails du rendez-vous
                         </h3>
-                        <table style="width: 100%; border-collapse: collapse;">
-                            <tr>
-                                <td style="padding: 8px 0; font-weight: bold; color: #555; width: 30%;">Date :</td>
-                                <td style="padding: 8px 0; color: #333; font-weight: bold;">${formattedDate}</td>
-                            </tr>
-                            <tr>
-                                <td style="padding: 8px 0; font-weight: bold; color: #555;">Heure :</td>
-                                <td style="padding: 8px 0; color: #333; font-weight: bold;">${time}</td>
-                            </tr>
-                            <tr>
-                                <td style="padding: 8px 0; font-weight: bold; color: #555;">Durée :</td>
-                                <td style="padding: 8px 0; color: #333;">${durationLabel}</td>
-                            </tr>
-                            <tr>
-                                <td style="padding: 8px 0; font-weight: bold; color: #555;">Type :</td>
-                                <td style="padding: 8px 0; color: #333;">${typeLabel}</td>
-                            </tr>
-                            ${isConsultation ? `
-                            <tr>
-                                <td style="padding: 8px 0; font-weight: bold; color: #555;">Tarif :</td>
-                                <td style="padding: 8px 0; color: #333; font-weight: bold;">${price}€</td>
-                            </tr>
-                            ` : ''}
-                        </table>
+                        <p style="margin: 12px 0 6px 0; color: #555; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Date</p>
+                        <p style="margin: 0; color: #333; font-size: 16px; font-weight: bold;">${formattedDate}</p>
+
+                        <p style="margin: 16px 0 6px 0; color: #555; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Horaire</p>
+                        <p style="margin: 0; color: #333; font-size: 16px; font-weight: bold;">${time} → ${endTime} (${durationLabel})</p>
+
+                        <p style="margin: 16px 0 6px 0; color: #555; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Type</p>
+                        <p style="margin: 0; color: #333; font-size: 16px; font-weight: bold;">${typeLabel}</p>
+
+                        ${isConsultation ? `
+                        <p style="margin: 16px 0 6px 0; color: #555; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Tarif</p>
+                        <p style="margin: 0; color: #333; font-size: 16px; font-weight: bold;">${price}€</p>
+                        ` : ''}
                     </div>
                     
                     <div style="background-color: #fff3e0; padding: 20px; border-radius: 8px; margin: 25px 0; border: 2px solid #ff9800;">
