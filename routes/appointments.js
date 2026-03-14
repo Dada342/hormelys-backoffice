@@ -66,7 +66,7 @@ transporter.verify(function(error, success) {
 
 // Fonction pour envoyer les emails avec nodemailer
 const sendConfirmationEmails = async (appointment) => {
-    const { firstName, lastName, email, phone, date, time, type, duration, price, endTime, cancellationToken } = appointment;
+    const { firstName, lastName, email, phone, date, time, type, duration, price, endTime, cancellationToken, notes } = appointment;
     const frontendUrl = process.env.FRONTEND_URL || 'https://www.hormelys.com';
     const cancellationUrl = `${frontendUrl}/rendez-vous/annulation?token=${cancellationToken}`;
     const config = SESSION_CONFIG[type] || SESSION_CONFIG.discovery_call;
@@ -306,7 +306,16 @@ const sendConfirmationEmails = async (appointment) => {
                             </tr>
                         </table>
                     </div>
-                    
+
+                    ${notes ? `
+                    <div style="background-color: #f3e5f5; padding: 25px; border-radius: 12px; margin: 25px 0; border-left: 5px solid #9c27b0;">
+                        <h3 style="margin-top: 0; color: #9c27b0; font-size: 18px;">
+                            📝 Raison de la venue :
+                        </h3>
+                        <p style="margin: 0; color: #333; font-size: 16px;">${notes}</p>
+                    </div>
+                    ` : ''}
+
                     <div style="background-color: #e3f2fd; padding: 25px; border-radius: 12px; margin: 25px 0; border-left: 5px solid #2196f3;">
                         <h3 style="margin-top: 0; color: #2196f3; font-size: 18px;">
                             📅 Détails du rendez-vous :
@@ -438,7 +447,7 @@ router.get('/availability', async (req, res) => {
 // POST /api/appointments/book - Réserver un créneau (avec vérification reCAPTCHA)
 router.post('/book', verifyRecaptcha, async (req, res) => {
     try {
-        const { firstName, lastName, email, phone, date, time, type = 'discovery_call' } = req.body;
+        const { firstName, lastName, email, phone, date, time, type = 'discovery_call', reason } = req.body;
 
         // Validation des données
         if (!firstName || !lastName || !email || !phone || !date || !time) {
@@ -524,6 +533,7 @@ router.post('/book', verifyRecaptcha, async (req, res) => {
             type,
             duration: config.duration,
             price: config.price,
+            notes: type === 'first_session' && reason ? reason.trim() : '',
             status: 'confirmed',
             cancellationToken
         });
