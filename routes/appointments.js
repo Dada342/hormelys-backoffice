@@ -873,6 +873,88 @@ router.get('/', authMiddleware, async (req, res) => {
     }
 });
 
+// PUT /api/appointments/:id - Modifier un rendez-vous (admin)
+router.put('/:id', authMiddleware, async (req, res) => {
+    try {
+        const { date, time, type, notes } = req.body;
+        const appointment = await Appointment.findById(req.params.id);
+
+        if (!appointment) {
+            return res.status(404).json({ message: 'Rendez-vous non trouvé' });
+        }
+
+        if (appointment.status === 'cancelled') {
+            return res.status(400).json({ message: 'Impossible de modifier un rendez-vous annulé' });
+        }
+
+        const newType = type || appointment.type;
+        const newDate = date || appointment.date;
+        const newTime = time || appointment.time;
+        const config = SESSION_CONFIG[newType] || SESSION_CONFIG.discovery_call;
+        const newEndTime = addMinutes(newTime, config.duration);
+
+        // Vérifier la disponibilité du nouveau créneau (sauf si date/heure inchangées)
+        if (date || time) {
+            if (newType === 'discovery_call') {
+                const existing = await Appointment.findOne({
+                    _id: { $ne: appointment._id },
+                    date: newDate,
+                    time: newTime,
+                    status: { $ne: 'cancelled' }
+                });
+                if (existing) {
+                    return res.status(409).json({ message: 'Ce créneau est déjà réservé' });
+                }
+            } else {
+                const overlapping = await Appointment.findOne({
+                    _id: { $ne: appointment._id },
+                    date: newDate,
+                    status: { $ne: 'cancelled' },
+                    time: { $lt: newEndTime },
+                    endTime: { $gt: newTime }
+                });
+                if (overlapping) {
+                    return res.status(409).json({ message: 'Ce créneau chevauche un rendez-vous existant' });
+                }
+            }
+        }
+
+        // Mettre à jour les champs
+        appointment.date = newDate;
+        appointment.time = newTime;
+        appointment.endTime = newEndTime;
+        appointment.type = newType;
+        appointment.duration = config.duration;
+        appointment.price = config.price;
+        if (notes !== undefined) appointment.notes = notes;
+        appointment.updatedAt = new Date();
+
+        await appointment.save();
+
+        // Mettre à jour Google Calendar si l'événement existe
+        if (appointment.googleEventId && calendar) {
+            try {
+                await deleteGoogleCalendarEvent(appointment.googleEventId);
+                const newGoogleEventId = await createGoogleCalendarEvent(appointment);
+                if (newGoogleEventId) {
+                    appointment.googleEventId = newGoogleEventId;
+                    await appointment.save();
+                }
+            } catch (calError) {
+                console.error('Erreur mise à jour Google Calendar:', calError.message);
+            }
+        }
+
+        res.json({
+            message: 'Rendez-vous modifié avec succès',
+            appointment
+        });
+    } catch (error) {
+        console.error('Erreur lors de la modification:', error);
+        res.status(500).json({ message: 'Erreur serveur' });
+    }
+});
+
 // PUT /api/appointments/:id/cancel - Annuler un rendez-vous
 router.put('/:id/cancel', async (req, res) => {
     try {
