@@ -48,8 +48,8 @@ async function createGoogleCalendarEvent(appointment) {
 
     const event = {
         summary: isConsultation
-            ? `${config.label} — ${firstName} ${lastName}`
-            : `Appel découverte — ${firstName} ${lastName}`,
+            ? `${firstName} ${lastName} — ${config.label}`
+            : `${firstName} ${lastName} — Appel découverte`,
         description: [
             `Client : ${firstName} ${lastName}`,
             `Email : ${email}`,
@@ -59,7 +59,7 @@ async function createGoogleCalendarEvent(appointment) {
             notes ? `\nRaison de la venue :\n${notes}` : null,
         ].filter(Boolean).join('\n'),
         location: isConsultation
-            ? 'Pôle Santé de Gignac - Box 203, 2e étage, 280 avenue de Lodève, 34150 GIGNAC'
+            ? 'Pôle Santé'
             : `Appel téléphonique — ${phone}`,
         start: {
             dateTime: `${date}T${time}:00`,
