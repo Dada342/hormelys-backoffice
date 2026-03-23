@@ -34,6 +34,24 @@ const SESSION_PRICES = {
 // =============================================
 
 /**
+ * GET /api/availability/debug-gcal?date=YYYY-MM-DD
+ * Route temporaire de debug pour vérifier la réponse de Google Calendar freebusy
+ */
+router.get('/debug-gcal', async (req, res) => {
+    try {
+        const { date } = req.query;
+        if (!date) {
+            return res.status(400).json({ message: 'Le paramètre date est requis' });
+        }
+        const busySlots = await getGoogleCalendarBusySlots(date);
+        res.json({ date, busySlots, count: busySlots.length });
+    } catch (error) {
+        console.error('Erreur debug gcal:', error);
+        res.status(500).json({ message: 'Erreur serveur', error: error.message });
+    }
+});
+
+/**
  * GET /api/availability/slots?date=YYYY-MM-DD&type=first_session|follow_up
  * Retourne les créneaux disponibles pour une date et un type de séance
  */

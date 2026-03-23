@@ -62,9 +62,14 @@ async function isGoogleCalendarBusy(date, startTime, endTime) {
  * @returns {Promise<Array<{start: string, end: string}>>} Liste des plages occupées (HH:MM)
  */
 async function getGoogleCalendarBusySlots(date) {
-    if (!calendar) return [];
+    if (!calendar) {
+        console.log('⚠️ getGoogleCalendarBusySlots: calendar non configuré');
+        return [];
+    }
 
     try {
+        console.log(`🔍 Google Calendar freebusy query pour ${date}, calendarId: ${GOOGLE_CALENDAR_ID}`);
+
         const response = await calendar.freebusy.query({
             requestBody: {
                 timeMin: `${date}T00:00:00`,
@@ -74,7 +79,18 @@ async function getGoogleCalendarBusySlots(date) {
             },
         });
 
-        const busySlots = response.data.calendars[GOOGLE_CALENDAR_ID]?.busy || [];
+        // Log de la réponse complète pour debug
+        const calendarData = response.data.calendars[GOOGLE_CALENDAR_ID];
+        console.log(`📅 Réponse freebusy pour ${date}:`, JSON.stringify(calendarData));
+
+        const busySlots = calendarData?.busy || [];
+        const errors = calendarData?.errors;
+        if (errors && errors.length > 0) {
+            console.error('❌ Erreurs freebusy:', JSON.stringify(errors));
+        }
+
+        console.log(`📅 ${busySlots.length} plage(s) occupée(s) trouvée(s) pour ${date}`);
+
         return busySlots.map(slot => {
             const start = new Date(slot.start);
             const end = new Date(slot.end);
