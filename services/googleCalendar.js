@@ -41,8 +41,8 @@ async function isGoogleCalendarBusy(date, startTime, endTime) {
     try {
         const response = await calendar.freebusy.query({
             requestBody: {
-                timeMin: `${date}T${startTime}:00`,
-                timeMax: `${date}T${endTime}:00`,
+                timeMin: new Date(`${date}T${startTime}:00.000Z`).toISOString(),
+                timeMax: new Date(`${date}T${endTime}:00.000Z`).toISOString(),
                 timeZone: 'Europe/Paris',
                 items: [{ id: GOOGLE_CALENDAR_ID }],
             },
@@ -72,8 +72,8 @@ async function getGoogleCalendarBusySlots(date) {
 
         const response = await calendar.freebusy.query({
             requestBody: {
-                timeMin: `${date}T00:00:00`,
-                timeMax: `${date}T23:59:59`,
+                timeMin: new Date(`${date}T00:00:00.000Z`).toISOString(),
+                timeMax: new Date(`${date}T23:59:59.000Z`).toISOString(),
                 timeZone: 'Europe/Paris',
                 items: [{ id: GOOGLE_CALENDAR_ID }],
             },
@@ -155,8 +155,8 @@ async function debugFreeBusy(date) {
     try {
         const response = await calendar.freebusy.query({
             requestBody: {
-                timeMin: `${date}T00:00:00`,
-                timeMax: `${date}T23:59:59`,
+                timeMin: new Date(`${date}T00:00:00.000Z`).toISOString(),
+                timeMax: new Date(`${date}T23:59:59.000Z`).toISOString(),
                 timeZone: 'Europe/Paris',
                 items: [{ id: GOOGLE_CALENDAR_ID }],
             },
