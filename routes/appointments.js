@@ -4,44 +4,23 @@ const crypto = require('crypto');
 const Appointment = require('../models/Appointment');
 const AvailabilitySlot = require('../models/AvailabilitySlot');
 const nodemailer = require('nodemailer');
-const { google } = require('googleapis');
 const verifyRecaptcha = require('../middleware/recaptchaMiddleware');
 const authMiddleware = require('../middlewares/authMiddleware');
+const { isGoogleCalendarBusy, createEvent, deleteEvent } = require('../services/googleCalendar');
 
 /**
- * Configuration Google Calendar API (compte de service)
+ * Durées et tarifs par type de séance
  */
-let calendar = null;
-try {
-    // Supporte le JSON brut ou encodé en Base64 (pour éviter les problèmes de \n sur Vercel)
-    const rawKey = process.env.GOOGLE_SERVICE_ACCOUNT_KEY || '{}';
-    let credentialsJson = rawKey;
-    if (!rawKey.startsWith('{')) {
-        credentialsJson = Buffer.from(rawKey, 'base64').toString('utf-8');
-    }
-    const credentials = JSON.parse(credentialsJson);
-    if (credentials.client_email) {
-        const auth = new google.auth.GoogleAuth({
-            credentials,
-            scopes: ['https://www.googleapis.com/auth/calendar'],
-        });
-        calendar = google.calendar({ version: 'v3', auth });
-        console.log('✅ Google Calendar API configurée');
-    } else {
-        console.warn('⚠️ GOOGLE_SERVICE_ACCOUNT_KEY non configurée — synchronisation Google Calendar désactivée');
-    }
-} catch (error) {
-    console.error('❌ Erreur configuration Google Calendar:', error.message);
-}
-
-const GOOGLE_CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID || 'nathalia.laffont@gmail.com';
+const SESSION_CONFIG = {
+    discovery_call: { duration: 30, price: 0, label: 'Appel découverte gratuit' },
+    first_session: { duration: 90, price: 65, label: 'Première séance (1h30)' },
+    follow_up: { duration: 60, price: 55, label: 'Séance de suivi (1h)' }
+};
 
 /**
  * Crée un événement dans Google Agenda de la naturopathe
  */
 async function createGoogleCalendarEvent(appointment) {
-    if (!calendar) return null;
-
     const { firstName, lastName, email, phone, date, time, endTime, type, notes } = appointment;
     const config = SESSION_CONFIG[type] || SESSION_CONFIG.discovery_call;
     const isConsultation = type === 'first_session' || type === 'follow_up';
@@ -78,44 +57,15 @@ async function createGoogleCalendarEvent(appointment) {
         },
     };
 
-    try {
-        const result = await calendar.events.insert({
-            calendarId: GOOGLE_CALENDAR_ID,
-            resource: event,
-        });
-        console.log('✅ Événement Google Calendar créé:', result.data.id);
-        return result.data.id;
-    } catch (error) {
-        console.error('❌ Erreur création événement Google Calendar:', error.message);
-        return null;
-    }
+    return createEvent(event);
 }
 
 /**
  * Supprime un événement Google Calendar par son ID
  */
 async function deleteGoogleCalendarEvent(googleEventId) {
-    if (!calendar || !googleEventId) return;
-
-    try {
-        await calendar.events.delete({
-            calendarId: GOOGLE_CALENDAR_ID,
-            eventId: googleEventId,
-        });
-        console.log('✅ Événement Google Calendar supprimé:', googleEventId);
-    } catch (error) {
-        console.error('❌ Erreur suppression événement Google Calendar:', error.message);
-    }
+    return deleteEvent(googleEventId);
 }
-
-/**
- * Durées et tarifs par type de séance
- */
-const SESSION_CONFIG = {
-    discovery_call: { duration: 30, price: 0, label: 'Appel découverte gratuit' },
-    first_session: { duration: 90, price: 65, label: 'Première séance (1h30)' },
-    follow_up: { duration: 60, price: 55, label: 'Séance de suivi (1h)' }
-};
 
 /**
  * Calcule l'heure de fin à partir d'une heure de début et d'une durée en minutes
@@ -632,6 +582,14 @@ router.post('/book', verifyRecaptcha, async (req, res) => {
 
         const config = SESSION_CONFIG[type];
         const endTime = addMinutes(time, config.duration);
+
+        // Vérifier si le créneau est occupé sur Google Calendar
+        const googleBusy = await isGoogleCalendarBusy(date, time, endTime);
+        if (googleBusy) {
+            return res.status(409).json({
+                message: 'Ce créneau n\'est pas disponible'
+            });
+        }
 
         // Vérification selon le type
         if (type === 'discovery_call') {

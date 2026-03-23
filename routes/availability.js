@@ -3,6 +3,7 @@ const router = express.Router();
 const AvailabilitySlot = require('../models/AvailabilitySlot');
 const Appointment = require('../models/Appointment');
 const authMiddleware = require('../middlewares/authMiddleware');
+const { getGoogleCalendarBusySlots } = require('../services/googleCalendar');
 
 /**
  * Calcule l'heure de fin à partir d'une heure de début et d'une durée en minutes
@@ -63,6 +64,9 @@ router.get('/slots', async (req, res) => {
             status: { $ne: 'cancelled' }
         });
 
+        // Récupérer les plages occupées sur Google Calendar
+        const googleBusySlots = await getGoogleCalendarBusySlots(date);
+
         // Générer les créneaux possibles par pas de 30 minutes
         const availableSlots = [];
 
@@ -81,7 +85,12 @@ router.get('/slots', async (req, res) => {
                     return currentTime < apptEnd && endTime > appt.time;
                 });
 
-                if (!hasConflict) {
+                // Vérifier qu'il n'y a pas de chevauchement avec Google Calendar
+                const hasGoogleConflict = googleBusySlots.some(busy =>
+                    currentTime < busy.end && endTime > busy.start
+                );
+
+                if (!hasConflict && !hasGoogleConflict) {
                     // Vérifier que le créneau n'est pas dans le passé
                     const slotDateTime = new Date(`${date}T${currentTime}:00`);
                     if (slotDateTime > new Date()) {
