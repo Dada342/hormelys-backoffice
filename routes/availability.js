@@ -3,7 +3,7 @@ const router = express.Router();
 const AvailabilitySlot = require('../models/AvailabilitySlot');
 const Appointment = require('../models/Appointment');
 const authMiddleware = require('../middlewares/authMiddleware');
-const { getGoogleCalendarBusySlots } = require('../services/googleCalendar');
+const { getGoogleCalendarBusySlots, debugFreeBusy } = require('../services/googleCalendar');
 
 /**
  * Calcule l'heure de fin à partir d'une heure de début et d'une durée en minutes
@@ -43,8 +43,9 @@ router.get('/debug-gcal', async (req, res) => {
         if (!date) {
             return res.status(400).json({ message: 'Le paramètre date est requis' });
         }
+        const rawDebug = await debugFreeBusy(date);
         const busySlots = await getGoogleCalendarBusySlots(date);
-        res.json({ date, busySlots, count: busySlots.length });
+        res.json({ date, busySlots, count: busySlots.length, debug: rawDebug });
     } catch (error) {
         console.error('Erreur debug gcal:', error);
         res.status(500).json({ message: 'Erreur serveur', error: error.message });

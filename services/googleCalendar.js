@@ -144,6 +144,39 @@ async function deleteEvent(googleEventId) {
     }
 }
 
+/**
+ * Debug : retourne la réponse brute de l'API freebusy pour diagnostic
+ */
+async function debugFreeBusy(date) {
+    if (!calendar) {
+        return { error: 'Google Calendar non configuré', calendarId: GOOGLE_CALENDAR_ID };
+    }
+
+    try {
+        const response = await calendar.freebusy.query({
+            requestBody: {
+                timeMin: `${date}T00:00:00`,
+                timeMax: `${date}T23:59:59`,
+                timeZone: 'Europe/Paris',
+                items: [{ id: GOOGLE_CALENDAR_ID }],
+            },
+        });
+
+        return {
+            calendarId: GOOGLE_CALENDAR_ID,
+            rawResponse: response.data.calendars[GOOGLE_CALENDAR_ID],
+            allCalendars: Object.keys(response.data.calendars),
+        };
+    } catch (error) {
+        return {
+            calendarId: GOOGLE_CALENDAR_ID,
+            error: error.message,
+            code: error.code,
+            errors: error.errors,
+        };
+    }
+}
+
 module.exports = {
     calendar,
     GOOGLE_CALENDAR_ID,
@@ -151,4 +184,5 @@ module.exports = {
     getGoogleCalendarBusySlots,
     createEvent,
     deleteEvent,
+    debugFreeBusy,
 };
