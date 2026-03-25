@@ -572,11 +572,12 @@ router.post('/book', verifyRecaptcha, async (req, res) => {
             });
         }
 
-        // Vérifier que la date/heure n'est pas dans le passé
+        // Vérifier que le créneau est à plus de 24h
         const appointmentDateTime = new Date(date + 'T' + time);
-        if (appointmentDateTime <= new Date()) {
+        const minBookingTime = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        if (appointmentDateTime <= minBookingTime) {
             return res.status(400).json({
-                message: 'Impossible de réserver un créneau dans le passé'
+                message: 'Les réservations doivent être effectuées au moins 24 heures à l\'avance'
             });
         }
 

@@ -91,9 +91,9 @@ router.get('/slots', async (req, res) => {
                 );
 
                 if (!hasConflict && !hasGoogleConflict) {
-                    // Vérifier que le créneau n'est pas dans le passé
+                    // Vérifier que le créneau est à plus de 24h
                     const slotDateTime = new Date(`${date}T${currentTime}:00`);
-                    if (slotDateTime > new Date()) {
+                    if (slotDateTime > new Date(Date.now() + 24 * 60 * 60 * 1000)) {
                         availableSlots.push({
                             time: currentTime,
                             endTime: endTime,
@@ -157,12 +157,13 @@ router.get('/open-days', async (req, res) => {
         const now = new Date();
 
         /**
-         * Vérifie si une plage a encore des créneaux dans le futur pour une date donnée
+         * Vérifie si une plage a encore des créneaux réservables (à plus de 24h)
          */
+        const minBookingTime = new Date(Date.now() + 24 * 60 * 60 * 1000);
         const hasAvailableTime = (dateStr, endTime) => {
             const [y, m, d] = dateStr.split('-').map(Number);
             const endDateTime = new Date(y, m - 1, d, ...endTime.split(':').map(Number));
-            return endDateTime > now;
+            return endDateTime > minBookingTime;
         };
 
         // Ajouter les jours avec des plages ponctuelles (si pas terminées)
