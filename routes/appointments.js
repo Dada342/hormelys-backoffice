@@ -299,6 +299,15 @@ const sendConfirmationEmails = async (appointment) => {
                         </ul>
                     </div>
 
+                    ${type === 'first_session' ? `
+                    <div style="background-color: #fdf2f8; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #f0c6d9;">
+                        <h4 style="margin-top: 0; color: #A13D6C;">📩 Questionnaire de préparation</h4>
+                        <p style="color: #555; margin: 0; line-height: 1.6;">
+                            Vous recevrez dans les 48 heures un questionnaire de ma part. Celui-ci me permettra de mieux comprendre votre problématique et vos symptômes afin de préparer au mieux votre première consultation. En le remplissant en amont, vous m'aiderez à optimiser le temps de votre séance et à vous offrir un accompagnement personnalisé dès notre premier rendez-vous.
+                        </p>
+                    </div>
+                    ` : ''}
+
                     <p style="color: #555; margin-top: 15px;">
                         Règlement de <strong>${price}€</strong> en espèces, par chèque ou par virement lors de la séance.
                     </p>
