@@ -250,7 +250,7 @@ const sendConfirmationEmails = async (appointment) => {
 
                     <p style="font-size: 16px; margin-bottom: 20px;">
                         ${isConsultation
-                            ? `Votre <strong>${typeLabel}</strong> au Pôle Santé de Gignac avec <strong>Nathalia</strong> a été confirmée avec succès.`
+                            ? `Votre <strong>${typeLabel}</strong> au Pôle Santé de Gignac avec <strong>Nathalia LAFFONT, naturopathe</strong> a été confirmée avec succès.`
                             : `Votre rendez-vous découverte de <strong>30 minutes</strong> par téléphone avec <strong>Nathalia</strong> a été confirmé avec succès.`
                         }
                     </p>
