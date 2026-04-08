@@ -732,15 +732,11 @@ router.put('/cancel-by-token/:token', async (req, res) => {
             return res.status(404).json({ message: 'Rendez-vous non trouvé' });
         }
 
-        if (appointment.status === 'cancelled') {
-            return res.status(400).json({ message: 'Ce rendez-vous a déjà été annulé' });
-        }
-
-        appointment.status = 'cancelled';
-        await appointment.save();
-
         // Supprimer l'événement du Google Agenda de la naturopathe
         await deleteGoogleCalendarEvent(appointment.googleEventId);
+
+        // Supprimer le rendez-vous de la base de données
+        await Appointment.findByIdAndDelete(appointment._id);
 
         // Notifier la naturopathe de l'annulation
         const appointmentDate = new Date(appointment.date + 'T' + appointment.time);
@@ -808,8 +804,8 @@ router.put('/cancel-by-token/:token', async (req, res) => {
         }
 
         res.json({
-            message: 'Rendez-vous annulé avec succès',
-            appointment: { id: appointment._id, status: 'cancelled' }
+            message: 'Rendez-vous annulé et supprimé avec succès',
+            appointment: { id: appointment._id }
         });
     } catch (error) {
         console.error('Erreur lors de l\'annulation par token:', error);
@@ -923,14 +919,10 @@ router.put('/:id', authMiddleware, async (req, res) => {
     }
 });
 
-// PUT /api/appointments/:id/cancel - Annuler un rendez-vous
-router.put('/:id/cancel', async (req, res) => {
+// DELETE /api/appointments/:id/cancel - Annuler et supprimer un rendez-vous
+router.delete('/:id/cancel', async (req, res) => {
     try {
-        const appointment = await Appointment.findByIdAndUpdate(
-            req.params.id,
-            { status: 'cancelled', updatedAt: new Date() },
-            { new: true }
-        );
+        const appointment = await Appointment.findById(req.params.id);
 
         if (!appointment) {
             return res.status(404).json({ message: 'Rendez-vous non trouvé' });
@@ -939,9 +931,12 @@ router.put('/:id/cancel', async (req, res) => {
         // Supprimer l'événement du Google Agenda
         await deleteGoogleCalendarEvent(appointment.googleEventId);
 
+        // Supprimer le rendez-vous de la base de données
+        await Appointment.findByIdAndDelete(appointment._id);
+
         res.json({
-            message: 'Rendez-vous annulé avec succès',
-            appointment 
+            message: 'Rendez-vous annulé et supprimé avec succès',
+            appointment: { id: appointment._id }
         });
     } catch (error) {
         console.error('Erreur lors de l\'annulation:', error);
