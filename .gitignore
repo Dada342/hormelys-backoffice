@@ -42,6 +42,9 @@ typings/
 # Optional npm cache directory
 .npm
 
+# package-lock.json - projet en yarn-only (cf. yarn.lock versionne)
+package-lock.json
+
 # Optional eslint cache
 .eslintcache
 
