@@ -48,6 +48,7 @@ async function createGoogleCalendarEvent(appointment) {
             dateTime: `${date}T${endTime}:00`,
             timeZone: 'Europe/Paris',
         },
+        colorId: '6', // Mandarine - identifie visuellement les RDV crees via le site
         reminders: {
             useDefault: false,
             overrides: [
