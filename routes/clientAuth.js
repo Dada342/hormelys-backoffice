@@ -98,6 +98,17 @@ router.get('/me', clientAuthMiddleware, async (req, res) => {
                     title: b.title,
                     content: b.content
                 })),
+            documents: (record.documents || [])
+                .filter(d => d.isShareable)
+                .map(d => ({
+                    id: d._id,
+                    title: d.title,
+                    fileUrl: d.fileUrl,
+                    fileType: d.fileType,
+                    fileSize: d.fileSize,
+                    originalFilename: d.originalFilename,
+                    uploadedAt: d.uploadedAt
+                })),
             updatedAt: record.updatedAt
         };
 

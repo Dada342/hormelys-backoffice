@@ -20,6 +20,22 @@ const informationsPersonnellesSchema = new mongoose.Schema({
 }, { _id: false });
 
 /**
+ * Sous-schema pour un document joint a la fiche (PDF, JPG, PNG).
+ * Stocke sur Cloudinary, accessible via fileUrl public.
+ */
+const documentSchema = new mongoose.Schema({
+    title: { type: String, required: true, trim: true },
+    fileUrl: { type: String, required: true },
+    fileType: { type: String, required: true }, // mime type
+    fileSize: { type: Number, required: true }, // bytes
+    originalFilename: { type: String, required: true },
+    publicId: { type: String, required: true }, // identifiant Cloudinary, pour suppression
+    resourceType: { type: String, default: 'image' }, // 'image' | 'raw' | 'video' (Cloudinary)
+    isShareable: { type: Boolean, default: true },
+    uploadedAt: { type: Date, default: Date.now }
+});
+
+/**
  * Sous-schema pour chaque bloc de suivi (problématiques, étapes protocoles, etc.).
  * Le contenu est du HTML rich-text (éditeur Quill 2.x côté admin).
  */
@@ -68,6 +84,10 @@ const clientRecordSchema = new mongoose.Schema({
     blocs: {
         type: [blocSchema],
         default: getDefaultBlocs
+    },
+    documents: {
+        type: [documentSchema],
+        default: []
     },
     clientAccountId: {
         type: mongoose.Schema.Types.ObjectId,

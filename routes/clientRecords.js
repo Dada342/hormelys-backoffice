@@ -1,11 +1,56 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
+const multer = require('multer');
+const cloudinary = require('cloudinary').v2;
+const { v4: uuidv4 } = require('uuid');
 const router = express.Router();
 const ClientRecord = require('../models/ClientRecord');
 const ClientAccount = require('../models/ClientAccount');
 const authMiddleware = require('../middlewares/authMiddleware');
 const { generateUniqueSlug, generateRandomPassword } = require('../services/clientRecord');
 const { sendMail } = require('../services/mailer');
+
+// Cloudinary partage la meme config que les articles (initialise globalement par routes/articles.js).
+// Re-config defensif au cas ou ce fichier est charge avant articles.js.
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+// Upload documents : PDF / JPG / PNG, max 10 Mo
+const ALLOWED_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
+const uploadDocument = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10 Mo
+    fileFilter: (req, file, cb) => {
+        if (ALLOWED_MIME_TYPES.includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error('Type de fichier non supporté. Acceptés : PDF, JPG, PNG'), false);
+        }
+    }
+});
+
+/**
+ * Upload un fichier sur Cloudinary dans un dossier par fiche cliente.
+ * Utilise resource_type 'auto' pour gerer PDF et images correctement.
+ */
+function uploadDocumentToCloudinary(file, clientRecordId) {
+    return new Promise((resolve, reject) => {
+        const uniqueFilename = `${uuidv4()}-${file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+        cloudinary.uploader.upload_stream(
+            {
+                public_id: `client-documents/${clientRecordId}/${uniqueFilename}`,
+                resource_type: 'auto'
+            },
+            (error, result) => {
+                if (error) return reject(new Error(`Cloudinary error: ${error.message}`));
+                resolve(result);
+            }
+        ).end(file.buffer);
+    });
+}
 
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || 'https://www.hormelys.com';
 
@@ -241,14 +286,114 @@ router.post('/:id/send-credentials', authMiddleware, async (req, res) => {
 });
 
 /**
+ * POST /api/admin/client-records/:id/documents
+ * Upload un document (PDF, JPG, PNG, max 10 Mo) attache a la fiche.
+ * Form-data : `file` (le fichier), `title` (optionnel, sinon = nom de fichier original)
+ */
+router.post('/:id/documents', authMiddleware, uploadDocument.single('file'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ message: 'Aucun fichier reçu' });
+        }
+        const record = await ClientRecord.findById(req.params.id);
+        if (!record) return res.status(404).json({ message: 'Fiche introuvable' });
+
+        const result = await uploadDocumentToCloudinary(req.file, record._id.toString());
+
+        const newDoc = {
+            title: (req.body.title || '').trim() || req.file.originalname,
+            fileUrl: result.secure_url,
+            fileType: req.file.mimetype,
+            fileSize: req.file.size,
+            originalFilename: req.file.originalname,
+            publicId: result.public_id,
+            resourceType: result.resource_type || 'image',
+            isShareable: true // partageable par defaut, cf. decision produit
+        };
+        record.documents.push(newDoc);
+        await record.save();
+
+        // Renvoie le document avec son _id genere
+        const savedDoc = record.documents[record.documents.length - 1];
+        res.status(201).json({ document: savedDoc });
+    } catch (error) {
+        // Multer error (taille, type) ou Cloudinary
+        if (error.code === 'LIMIT_FILE_SIZE') {
+            return res.status(413).json({ message: 'Fichier trop volumineux (max 10 Mo)' });
+        }
+        console.error('Erreur upload document:', error);
+        res.status(500).json({ message: error.message || 'Erreur lors de l\'upload' });
+    }
+});
+
+/**
+ * PUT /api/admin/client-records/:id/documents/:docId
+ * Met a jour le titre et/ou la visibilite d'un document existant.
+ * Body : { title?, isShareable? }
+ */
+router.put('/:id/documents/:docId', authMiddleware, async (req, res) => {
+    try {
+        const record = await ClientRecord.findById(req.params.id);
+        if (!record) return res.status(404).json({ message: 'Fiche introuvable' });
+        const doc = record.documents.id(req.params.docId);
+        if (!doc) return res.status(404).json({ message: 'Document introuvable' });
+
+        if (typeof req.body.title === 'string') doc.title = req.body.title.trim();
+        if (typeof req.body.isShareable === 'boolean') doc.isShareable = req.body.isShareable;
+
+        await record.save();
+        res.json({ document: doc });
+    } catch (error) {
+        console.error('Erreur update document:', error);
+        res.status(500).json({ message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * DELETE /api/admin/client-records/:id/documents/:docId
+ * Supprime le document de la fiche ET le fichier sur Cloudinary.
+ */
+router.delete('/:id/documents/:docId', authMiddleware, async (req, res) => {
+    try {
+        const record = await ClientRecord.findById(req.params.id);
+        if (!record) return res.status(404).json({ message: 'Fiche introuvable' });
+        const doc = record.documents.id(req.params.docId);
+        if (!doc) return res.status(404).json({ message: 'Document introuvable' });
+
+        // Cleanup Cloudinary (on tolere une erreur, on retire quand meme de la fiche)
+        try {
+            await cloudinary.uploader.destroy(doc.publicId, { resource_type: doc.resourceType || 'image' });
+        } catch (cloudErr) {
+            console.error('Erreur suppression Cloudinary:', cloudErr.message);
+        }
+
+        record.documents.pull(req.params.docId);
+        await record.save();
+        res.json({ message: 'Document supprimé' });
+    } catch (error) {
+        console.error('Erreur suppression document:', error);
+        res.status(500).json({ message: 'Erreur serveur' });
+    }
+});
+
+/**
  * DELETE /api/admin/client-records/:id
- * Supprime la fiche ET le ClientAccount associe si existant.
+ * Supprime la fiche, le ClientAccount associe ET tous les documents Cloudinary.
  * Note : ne touche pas aux Appointments lies, qui restent en base.
  */
 router.delete('/:id', authMiddleware, async (req, res) => {
     try {
         const record = await ClientRecord.findById(req.params.id);
         if (!record) return res.status(404).json({ message: 'Fiche introuvable' });
+
+        // Cleanup des documents Cloudinary (tolere les erreurs, continue la suppression)
+        for (const doc of record.documents) {
+            try {
+                await cloudinary.uploader.destroy(doc.publicId, { resource_type: doc.resourceType || 'image' });
+            } catch (cloudErr) {
+                console.error(`Erreur suppression Cloudinary doc ${doc.publicId}:`, cloudErr.message);
+            }
+        }
 
         if (record.clientAccountId) {
             await ClientAccount.findByIdAndDelete(record.clientAccountId);
