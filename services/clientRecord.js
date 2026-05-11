@@ -1,4 +1,5 @@
 const ClientRecord = require('../models/ClientRecord');
+const Appointment = require('../models/Appointment');
 
 /**
  * Genere un slug a partir du prenom et du nom, en retirant accents et caracteres non alphanumeriques.
@@ -72,7 +73,42 @@ async function createOrLinkClientRecordFromAppointment(appointment) {
     return record;
 }
 
+/**
+ * Detache un RDV annule de la fiche cliente qui le contient.
+ * Si apres detachement la fiche n'a plus aucun RDV ET n'est pas encore activee
+ * (compte cliente jamais cree), elle est supprimee completement (smart cleanup).
+ * Sinon : on conserve la fiche, juste detachee.
+ * No-op si aucune fiche ne reference ce RDV (cas d'un discovery_call par ex.).
+ * @param {string|ObjectId} appointmentId
+ * @returns {Promise<{action: 'unlinked' | 'deleted' | 'noop', clientRecordId?: string}>}
+ */
+async function detachAppointmentFromClientRecord(appointmentId) {
+    const record = await ClientRecord.findOne({ appointments: appointmentId });
+    if (!record) return { action: 'noop' };
+
+    // Retire le RDV annule
+    record.appointments = record.appointments.filter(id => !id.equals(appointmentId));
+
+    // Purge les IDs orphelins (RDVs deja supprimes precedemment) pour eviter qu'une fiche persiste a tort
+    if (record.appointments.length > 0) {
+        const existingIds = await Appointment.find({ _id: { $in: record.appointments } }).distinct('_id');
+        record.appointments = record.appointments.filter(id =>
+            existingIds.some(eid => eid.equals(id))
+        );
+    }
+
+    if (record.appointments.length === 0 && !record.accountActivated) {
+        const id = record._id.toString();
+        await ClientRecord.findByIdAndDelete(record._id);
+        return { action: 'deleted', clientRecordId: id };
+    }
+
+    await record.save();
+    return { action: 'unlinked', clientRecordId: record._id.toString() };
+}
+
 module.exports = {
     generateUniqueSlug,
-    createOrLinkClientRecordFromAppointment
+    createOrLinkClientRecordFromAppointment,
+    detachAppointmentFromClientRecord
 };

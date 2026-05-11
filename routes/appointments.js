@@ -7,7 +7,7 @@ const nodemailer = require('nodemailer');
 const verifyRecaptcha = require('../middleware/recaptchaMiddleware');
 const authMiddleware = require('../middlewares/authMiddleware');
 const { isGoogleCalendarBusy, createEvent, deleteEvent } = require('../services/googleCalendar');
-const { createOrLinkClientRecordFromAppointment } = require('../services/clientRecord');
+const { createOrLinkClientRecordFromAppointment, detachAppointmentFromClientRecord } = require('../services/clientRecord');
 
 /**
  * Durées et tarifs par type de séance
@@ -747,6 +747,16 @@ router.put('/cancel-by-token/:token', async (req, res) => {
         // Supprimer l'événement du Google Agenda de la naturopathe
         await deleteGoogleCalendarEvent(appointment.googleEventId);
 
+        // Détacher le RDV de sa fiche cliente associée (smart cleanup si fiche orpheline non activée)
+        try {
+            const cleanup = await detachAppointmentFromClientRecord(appointment._id);
+            if (cleanup.action === 'deleted') {
+                console.log(`Fiche cliente ${cleanup.clientRecordId} supprimée (orpheline + non activée)`);
+            }
+        } catch (cleanupError) {
+            console.error('Erreur cleanup fiche cliente lors de l\'annulation:', cleanupError);
+        }
+
         // Supprimer le rendez-vous de la base de données
         await Appointment.findByIdAndDelete(appointment._id);
 
@@ -942,6 +952,16 @@ router.delete('/:id/cancel', async (req, res) => {
 
         // Supprimer l'événement du Google Agenda
         await deleteGoogleCalendarEvent(appointment.googleEventId);
+
+        // Détacher le RDV de sa fiche cliente associée (smart cleanup si fiche orpheline non activée)
+        try {
+            const cleanup = await detachAppointmentFromClientRecord(appointment._id);
+            if (cleanup.action === 'deleted') {
+                console.log(`Fiche cliente ${cleanup.clientRecordId} supprimée (orpheline + non activée)`);
+            }
+        } catch (cleanupError) {
+            console.error('Erreur cleanup fiche cliente lors de l\'annulation:', cleanupError);
+        }
 
         // Supprimer le rendez-vous de la base de données
         await Appointment.findByIdAndDelete(appointment._id);
