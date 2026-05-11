@@ -1,5 +1,24 @@
+const crypto = require('crypto');
 const ClientRecord = require('../models/ClientRecord');
 const Appointment = require('../models/Appointment');
+
+/**
+ * Genere un mot de passe aleatoire cryptographiquement sur, lisible.
+ * Exclut les caracteres ambigus (0/O/o, 1/l/I) et les caracteres speciaux
+ * pour eviter les confusions a la saisie/dictee. 55 caracteres dans l'alphabet
+ * × 12 chars = ~70 bits d'entropie (largement suffisant).
+ * @param {number} length - Longueur du mot de passe (defaut 12)
+ * @returns {string}
+ */
+function generateRandomPassword(length = 12) {
+    const charset = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const bytes = crypto.randomBytes(length);
+    let password = '';
+    for (let i = 0; i < length; i++) {
+        password += charset[bytes[i] % charset.length];
+    }
+    return password;
+}
 
 /**
  * Genere un slug a partir du prenom et du nom, en retirant accents et caracteres non alphanumeriques.
@@ -155,6 +174,7 @@ async function detachAppointmentFromClientRecord(appointment) {
 
 module.exports = {
     generateUniqueSlug,
+    generateRandomPassword,
     createOrLinkClientRecordFromAppointment,
     detachAppointmentFromClientRecord
 };
