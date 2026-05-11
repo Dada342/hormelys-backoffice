@@ -74,15 +74,55 @@ async function createOrLinkClientRecordFromAppointment(appointment) {
 }
 
 /**
+ * Determine si une fiche est consideree "vierge" (jamais remplie par la naturopathe).
+ * Une fiche est vierge si :
+ *   - Aucun bloc predefini n'a de contenu (apres strip HTML)
+ *   - Aucun bloc personnalise (custom) n'a ete ajoute
+ *   - Aucun champ d'identite "etendu" n'a ete rempli (age, poids, taille, adresse,
+ *     situation, enfants, emploi). Les champs nom/prenom/email/telephone/motifRdv
+ *     sont pre-remplis automatiquement depuis le RDV donc ne comptent pas.
+ * @param {Object} record - document Mongoose ClientRecord
+ * @returns {boolean}
+ */
+function isFicheUntouched(record) {
+    const ip = record.informationsPersonnelles || {};
+
+    if (ip.age != null) return false;
+    if (ip.poids != null) return false;
+    if (ip.taille != null) return false;
+    if (ip.adresse && ip.adresse.trim()) return false;
+    if (ip.situationFamiliale && ip.situationFamiliale.trim()) return false;
+    if (ip.enfants && ip.enfants.trim()) return false;
+    if (ip.emploi && ip.emploi.trim()) return false;
+
+    if (record.blocs.some(b => b.key === 'custom')) return false;
+
+    const hasContentInBlocs = record.blocs.some(b => {
+        if (!b.content) return false;
+        const stripped = b.content.replace(/<[^>]*>/g, '').trim();
+        return stripped.length > 0;
+    });
+    if (hasContentInBlocs) return false;
+
+    return true;
+}
+
+/**
  * Detache un RDV annule de la fiche cliente qui le contient.
- * Si apres detachement la fiche n'a plus aucun RDV ET n'est pas encore activee
- * (compte cliente jamais cree), elle est supprimee completement (smart cleanup).
- * Sinon : on conserve la fiche, juste detachee.
+ * La fiche est supprimee SEULEMENT si TOUTES ces conditions sont remplies :
+ *   1. Le RDV annule est de type 'first_session' (pas un follow_up)
+ *   2. La fiche n'a plus aucun autre RDV apres nettoyage
+ *   3. La fiche n'a pas ete activee (compte cliente jamais cree)
+ *   4. La fiche n'a jamais ete remplie par la naturopathe (cf. isFicheUntouched)
+ * Sinon : la fiche est conservee (la naturopathe la supprimera manuellement si elle le souhaite).
  * No-op si aucune fiche ne reference ce RDV (cas d'un discovery_call par ex.).
- * @param {string|ObjectId} appointmentId
+ * @param {Object} appointment - document Mongoose Appointment (besoin du _id ET du type)
  * @returns {Promise<{action: 'unlinked' | 'deleted' | 'noop', clientRecordId?: string}>}
  */
-async function detachAppointmentFromClientRecord(appointmentId) {
+async function detachAppointmentFromClientRecord(appointment) {
+    const appointmentId = appointment._id;
+    const appointmentType = appointment.type;
+
     const record = await ClientRecord.findOne({ appointments: appointmentId });
     if (!record) return { action: 'noop' };
 
@@ -97,7 +137,13 @@ async function detachAppointmentFromClientRecord(appointmentId) {
         );
     }
 
-    if (record.appointments.length === 0 && !record.accountActivated) {
+    const shouldDelete =
+        appointmentType === 'first_session' &&
+        record.appointments.length === 0 &&
+        !record.accountActivated &&
+        isFicheUntouched(record);
+
+    if (shouldDelete) {
         const id = record._id.toString();
         await ClientRecord.findByIdAndDelete(record._id);
         return { action: 'deleted', clientRecordId: id };

@@ -749,7 +749,7 @@ router.put('/cancel-by-token/:token', async (req, res) => {
 
         // Détacher le RDV de sa fiche cliente associée (smart cleanup si fiche orpheline non activée)
         try {
-            const cleanup = await detachAppointmentFromClientRecord(appointment._id);
+            const cleanup = await detachAppointmentFromClientRecord(appointment);
             if (cleanup.action === 'deleted') {
                 console.log(`Fiche cliente ${cleanup.clientRecordId} supprimée (orpheline + non activée)`);
             }
@@ -955,7 +955,7 @@ router.delete('/:id/cancel', async (req, res) => {
 
         // Détacher le RDV de sa fiche cliente associée (smart cleanup si fiche orpheline non activée)
         try {
-            const cleanup = await detachAppointmentFromClientRecord(appointment._id);
+            const cleanup = await detachAppointmentFromClientRecord(appointment);
             if (cleanup.action === 'deleted') {
                 console.log(`Fiche cliente ${cleanup.clientRecordId} supprimée (orpheline + non activée)`);
             }
