@@ -7,6 +7,7 @@ const nodemailer = require('nodemailer');
 const verifyRecaptcha = require('../middleware/recaptchaMiddleware');
 const authMiddleware = require('../middlewares/authMiddleware');
 const { isGoogleCalendarBusy, createEvent, deleteEvent } = require('../services/googleCalendar');
+const { createOrLinkClientRecordFromAppointment } = require('../services/clientRecord');
 
 /**
  * Durées et tarifs par type de séance
@@ -656,6 +657,16 @@ router.post('/book', verifyRecaptcha, async (req, res) => {
         const googleEventId = await createGoogleCalendarEvent(appointment);
         if (googleEventId) {
             appointment.googleEventId = googleEventId;
+        }
+
+        // Auto-création / lien de la fiche cliente pour les RDV physiques uniquement
+        if (appointment.type === 'first_session' || appointment.type === 'follow_up') {
+            try {
+                await createOrLinkClientRecordFromAppointment(appointment);
+            } catch (clientRecordError) {
+                // Ne pas faire échouer la réservation si la création de fiche échoue
+                console.error('Erreur création/lien fiche cliente:', clientRecordError);
+            }
         }
 
         // Envoyer les emails de confirmation

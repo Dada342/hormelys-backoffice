@@ -13,6 +13,7 @@ const reviewsRouter = require('./routes/reviews');
 const appointmentsRouter = require('./routes/appointments');
 const availabilityRouter = require('./routes/availability');
 const cronRouter = require('./routes/cron');
+const clientRecordsRouter = require('./routes/clientRecords');
 
 
 var app = express();
@@ -64,6 +65,7 @@ app.use('/api/reviews', reviewsRouter);
 app.use('/api/appointments', appointmentsRouter);
 app.use('/api/availability', availabilityRouter);
 app.use('/api/cron', cronRouter);
+app.use('/api/admin/client-records', clientRecordsRouter);
 
 module.exports = app;
 
