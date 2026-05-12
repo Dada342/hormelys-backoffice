@@ -42,7 +42,7 @@ const documentSchema = new mongoose.Schema({
 const blocSchema = new mongoose.Schema({
     key: {
         type: String,
-        enum: ['problematiques', 'etapes_protocoles', 'instructions', 'complements_alimentaires', 'autres_informations', 'custom'],
+        enum: ['problematiques', 'etapes_protocoles', 'instructions', 'complements_alimentaires', 'autres_informations', 'questionnaire', 'custom'],
         required: true
     },
     title: { type: String, required: true, trim: true },
@@ -61,7 +61,8 @@ function getDefaultBlocs() {
         { key: 'etapes_protocoles', title: 'Étapes protocoles', content: '', isShareable: true, order: 1 },
         { key: 'instructions', title: 'Instructions', content: '', isShareable: true, order: 2 },
         { key: 'complements_alimentaires', title: 'Compléments alimentaires', content: '', isShareable: true, order: 3 },
-        { key: 'autres_informations', title: 'Autres informations', content: '', isShareable: false, order: 4 }
+        { key: 'autres_informations', title: 'Autres informations', content: '', isShareable: false, order: 4 },
+        { key: 'questionnaire', title: 'Questionnaire', content: '', isShareable: true, order: 5 }
     ];
 }
 
