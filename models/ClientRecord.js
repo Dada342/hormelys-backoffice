@@ -61,8 +61,8 @@ function getDefaultBlocs() {
         { key: 'etapes_protocoles', title: 'Étapes protocoles', content: '', isShareable: true, order: 1 },
         { key: 'instructions', title: 'Instructions', content: '', isShareable: true, order: 2 },
         { key: 'complements_alimentaires', title: 'Compléments alimentaires', content: '', isShareable: true, order: 3 },
-        { key: 'autres_informations', title: 'Autres informations', content: '', isShareable: false, order: 4 },
-        { key: 'questionnaire', title: 'Questionnaire', content: '', isShareable: true, order: 5 }
+        { key: 'questionnaire', title: 'Questionnaire', content: '', isShareable: true, order: 4 },
+        { key: 'autres_informations', title: 'Autres informations', content: '', isShareable: false, order: 5 }
     ];
 }
 
