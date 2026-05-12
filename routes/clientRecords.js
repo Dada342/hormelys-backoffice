@@ -212,6 +212,49 @@ router.put('/:id', authMiddleware, async (req, res) => {
 });
 
 /**
+ * GET /api/admin/client-records/:id/preview
+ * Retourne la fiche filtree EXACTEMENT comme la verra la cliente sur /espace-client/[slug],
+ * pour permettre a l'admin de previsualiser son rendu sans avoir a se logger en tant que cliente.
+ * Auth admin (pas besoin que l'espace cliente soit deja active).
+ */
+router.get('/:id/preview', authMiddleware, async (req, res) => {
+    try {
+        const record = await ClientRecord.findById(req.params.id);
+        if (!record) return res.status(404).json({ message: 'Fiche introuvable' });
+
+        // Meme logique de filtrage que GET /api/client-auth/me
+        const view = {
+            slug: record.slug,
+            prenom: record.informationsPersonnelles?.prenom || '',
+            nom: record.informationsPersonnelles?.nom || '',
+            informationsPersonnelles: record.informationsPersonnellesIsShareable
+                ? record.informationsPersonnelles
+                : null,
+            blocs: (record.blocs || [])
+                .filter(b => b.isShareable)
+                .sort((a, b) => a.order - b.order)
+                .map(b => ({ key: b.key, title: b.title, content: b.content })),
+            documents: (record.documents || [])
+                .filter(d => d.isShareable)
+                .map(d => ({
+                    id: d._id,
+                    title: d.title,
+                    fileUrl: d.fileUrl,
+                    fileType: d.fileType,
+                    fileSize: d.fileSize,
+                    originalFilename: d.originalFilename,
+                    uploadedAt: d.uploadedAt
+                })),
+            updatedAt: record.updatedAt
+        };
+        res.json({ clientRecord: view });
+    } catch (error) {
+        console.error('Erreur preview fiche:', error);
+        res.status(500).json({ message: 'Erreur serveur' });
+    }
+});
+
+/**
  * POST /api/admin/client-records/:id/send-credentials
  * Active l'espace cliente :
  *   - Genere un mot de passe aleatoire
