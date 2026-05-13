@@ -16,7 +16,7 @@ router.post('/register', async (req, res) => {
     await user.save();
 
     // Générez le token JWT après l'enregistrement
-    const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '1h' });
+    const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
 
     // Envoyez le message de succès et le token
     res.status(201).json({ message: 'Utilisateur créé avec succès', token });
@@ -36,7 +36,7 @@ router.post('/login', async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ error: 'Mot de passe incorrect' });
 
-    const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '1h' });
+    const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
     res.json({ token });
   } catch (error) {
     res.status(500).json({ error: 'Erreur de serveur' });
