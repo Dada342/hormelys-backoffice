@@ -35,10 +35,13 @@ const uploadDocument = multer({
 /**
  * Upload un fichier sur Cloudinary dans un dossier par fiche cliente.
  * Utilise resource_type 'auto' pour gerer PDF et images correctement.
+ * On retire l'extension du fichier original avant de la passer en public_id, sinon
+ * Cloudinary ajoute sa propre extension en plus et on se retrouve avec `file.pdf.pdf`.
  */
 function uploadDocumentToCloudinary(file, clientRecordId) {
     return new Promise((resolve, reject) => {
-        const uniqueFilename = `${uuidv4()}-${file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+        const baseName = file.originalname.replace(/\.[^/.]+$/, ''); // strip extension
+        const uniqueFilename = `${uuidv4()}-${baseName.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
         cloudinary.uploader.upload_stream(
             {
                 public_id: `client-documents/${clientRecordId}/${uniqueFilename}`,
