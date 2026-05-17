@@ -242,7 +242,7 @@ router.get('/:id/preview', authMiddleware, async (req, res) => {
             informationsPersonnelles: record.informationsPersonnellesIsShareable
                 ? record.informationsPersonnelles
                 : null,
-            nextAppointment: record.nextAppointment?.date
+            nextAppointment: (record.nextAppointment?.date || record.nextAppointment?.note)
                 ? {
                     date: record.nextAppointment.date,
                     time: record.nextAppointment.time,
