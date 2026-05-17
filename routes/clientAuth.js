@@ -90,6 +90,13 @@ router.get('/me', clientAuthMiddleware, async (req, res) => {
             informationsPersonnelles: record.informationsPersonnellesIsShareable
                 ? record.informationsPersonnelles
                 : null,
+            nextAppointment: record.nextAppointment?.date
+                ? {
+                    date: record.nextAppointment.date,
+                    time: record.nextAppointment.time,
+                    note: record.nextAppointment.note
+                }
+                : null,
             blocs: (record.blocs || [])
                 .filter(b => b.isShareable)
                 .sort((a, b) => a.order - b.order)

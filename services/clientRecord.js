@@ -72,6 +72,16 @@ async function createOrLinkClientRecordFromAppointment(appointment) {
             existing.informationsPersonnelles.motifRdv = appointment.notes;
             changed = true;
         }
+        // Auto-fill du prochain RDV : un follow_up ecrase TOUJOURS la valeur precedente (manuelle ou auto)
+        if (appointment.type === 'follow_up') {
+            existing.nextAppointment = {
+                date: appointment.date,
+                time: appointment.time,
+                note: existing.nextAppointment?.note || '',
+                source: 'auto'
+            };
+            changed = true;
+        }
         if (changed) await existing.save();
         return existing;
     }
@@ -86,7 +96,10 @@ async function createOrLinkClientRecordFromAppointment(appointment) {
             telephone: appointment.phone || '',
             motifRdv: appointment.type === 'first_session' ? (appointment.notes || '') : ''
         },
-        appointments: [appointment._id]
+        appointments: [appointment._id],
+        nextAppointment: appointment.type === 'follow_up'
+            ? { date: appointment.date, time: appointment.time, note: '', source: 'auto' }
+            : { date: '', time: '', note: '', source: '' }
     });
     await record.save();
     return record;
@@ -147,6 +160,16 @@ async function detachAppointmentFromClientRecord(appointment) {
 
     // Retire le RDV annule
     record.appointments = record.appointments.filter(id => !id.equals(appointmentId));
+
+    // Si c'est un follow_up auto-rempli dans nextAppointment ET qui matche le RDV annule, on nettoie
+    if (
+        appointmentType === 'follow_up' &&
+        record.nextAppointment?.source === 'auto' &&
+        record.nextAppointment?.date === appointment.date &&
+        record.nextAppointment?.time === appointment.time
+    ) {
+        record.nextAppointment = { date: '', time: '', note: '', source: '' };
+    }
 
     // Purge les IDs orphelins (RDVs deja supprimes precedemment) pour eviter qu'une fiche persiste a tort
     if (record.appointments.length > 0) {

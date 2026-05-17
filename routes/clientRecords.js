@@ -188,7 +188,7 @@ router.post('/', authMiddleware, async (req, res) => {
  */
 router.put('/:id', authMiddleware, async (req, res) => {
     try {
-        const { informationsPersonnelles, informationsPersonnellesIsShareable, blocs } = req.body;
+        const { informationsPersonnelles, informationsPersonnellesIsShareable, blocs, nextAppointment } = req.body;
         const record = await ClientRecord.findById(req.params.id);
         if (!record) return res.status(404).json({ message: 'Fiche introuvable' });
 
@@ -205,6 +205,15 @@ router.put('/:id', authMiddleware, async (req, res) => {
         }
         if (Array.isArray(blocs)) {
             record.blocs = blocs;
+        }
+        // Toute saisie via l'admin form est consideree 'manual' (sera ecrasee par un futur follow_up)
+        if (nextAppointment && typeof nextAppointment === 'object') {
+            record.nextAppointment = {
+                date: nextAppointment.date || '',
+                time: nextAppointment.time || '',
+                note: nextAppointment.note || '',
+                source: 'manual'
+            };
         }
         await record.save();
         res.json({ clientRecord: record });
@@ -232,6 +241,13 @@ router.get('/:id/preview', authMiddleware, async (req, res) => {
             nom: record.informationsPersonnelles?.nom || '',
             informationsPersonnelles: record.informationsPersonnellesIsShareable
                 ? record.informationsPersonnelles
+                : null,
+            nextAppointment: record.nextAppointment?.date
+                ? {
+                    date: record.nextAppointment.date,
+                    time: record.nextAppointment.time,
+                    note: record.nextAppointment.note
+                }
                 : null,
             blocs: (record.blocs || [])
                 .filter(b => b.isShareable)

@@ -20,6 +20,20 @@ const informationsPersonnellesSchema = new mongoose.Schema({
 }, { _id: false });
 
 /**
+ * Sous-schema pour le prochain rendez-vous de la cliente.
+ * Source 'auto' = rempli automatiquement quand la cliente prend un RDV de type follow_up.
+ * Source 'manual' = saisi manuellement par Nathalia depuis l'admin.
+ * Un nouveau follow_up ecrase TOUJOURS la saisie manuelle (decision produit).
+ * En cas d'annulation d'un RDV auto-rempli, le champ est nettoye.
+ */
+const nextAppointmentSchema = new mongoose.Schema({
+    date: { type: String, default: '' },    // YYYY-MM-DD
+    time: { type: String, default: '' },    // HH:MM
+    note: { type: String, default: '', trim: true }, // ex: "en visio", "au cabinet"
+    source: { type: String, enum: ['auto', 'manual', ''], default: '' }
+}, { _id: false });
+
+/**
  * Sous-schema pour un document joint a la fiche (PDF, JPG, PNG).
  * Stocke sur Cloudinary, accessible via fileUrl public.
  */
@@ -85,6 +99,10 @@ const clientRecordSchema = new mongoose.Schema({
     blocs: {
         type: [blocSchema],
         default: getDefaultBlocs
+    },
+    nextAppointment: {
+        type: nextAppointmentSchema,
+        default: () => ({ date: '', time: '', note: '', source: '' })
     },
     documents: {
         type: [documentSchema],
