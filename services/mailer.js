@@ -21,19 +21,34 @@ const transporter = nodemailer.createTransport({
 });
 
 /**
+ * Construit le header From avec un nom d'affichage humain.
+ * Ex: '"Nathalia Laffont - Hormelys" <contact@hormelys.com>'.
+ * Le nom d'affichage est configurable via SMTP_FROM_NAME (defaut: "Hormelys").
+ */
+function buildFrom() {
+    const fromName = process.env.SMTP_FROM_NAME || 'Hormelys';
+    return `"${fromName}" <${process.env.SMTP_FROM}>`;
+}
+
+/**
  * Envoie un email via le transporter partage.
+ * Inclut systematiquement un Reply-To pour permettre aux destinataires
+ * de repondre directement a la naturopathe.
  * @param {Object} options
  * @param {string} options.to - Adresse email du destinataire
  * @param {string} options.subject - Sujet
  * @param {string} options.html - Corps HTML
+ * @param {string} [options.text] - Version texte alternative (recommande pour deliverabilite)
  * @returns {Promise<Object>} Le messageInfo de nodemailer
  */
-async function sendMail({ to, subject, html }) {
+async function sendMail({ to, subject, html, text }) {
     return transporter.sendMail({
-        from: process.env.SMTP_FROM,
+        from: buildFrom(),
+        replyTo: process.env.NATUROPATH_EMAIL || process.env.SMTP_FROM,
         to,
         subject,
-        html
+        html,
+        text
     });
 }
 

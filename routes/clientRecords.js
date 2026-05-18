@@ -58,11 +58,33 @@ function uploadDocumentToCloudinary(file, clientRecordId) {
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || 'https://www.hormelys.com';
 
 /**
- * Construit le HTML de l'email contenant les identifiants de l'espace cliente.
+ * Construit le contenu de l'email d'identifiants (HTML + version texte).
+ * La version texte est requise pour la deliverabilite : les filtres anti-spam
+ * penalisent les emails 100% HTML.
+ * @returns {{ html: string, text: string }}
  */
-function buildCredentialsEmailHtml({ prenom, slug, email, password }) {
+function buildCredentialsEmail({ prenom, slug, email, password }) {
     const espaceUrl = `${PUBLIC_BASE_URL}/espace-client/${slug}`;
-    return `
+
+    const text = `Bonjour ${prenom},
+
+Votre naturopathe Nathalia Laffont a créé un espace personnel pour vous accompagner dans votre suivi. Vous y retrouverez les recommandations, étapes du protocole et conseils personnalisés.
+
+VOS IDENTIFIANTS
+Lien d'accès : ${espaceUrl}
+Email : ${email}
+Mot de passe : ${password}
+
+Important : conservez ces identifiants en lieu sûr et ne les partagez pas. Votre espace est en lecture seule, il vous suffit de vous connecter pour le consulter.
+
+À très bientôt,
+Nathalia Laffont — Naturopathe certifiée
+
+—
+Hormelys — Naturopathie
+${PUBLIC_BASE_URL}`;
+
+    const html = `
         <!DOCTYPE html>
         <html>
         <head><meta charset="utf-8"></head>
@@ -116,6 +138,8 @@ function buildCredentialsEmailHtml({ prenom, slug, email, password }) {
         </body>
         </html>
     `;
+
+    return { html, text };
 }
 
 /**
@@ -318,15 +342,17 @@ router.post('/:id/send-credentials', authMiddleware, async (req, res) => {
 
         // Envoi de l'email avec les identifiants en clair (unique moment ou ils sont communiques)
         try {
+            const { html, text } = buildCredentialsEmail({
+                prenom: record.informationsPersonnelles.prenom || '',
+                slug: record.slug,
+                email,
+                password: plainPassword
+            });
             await sendMail({
                 to: email,
                 subject: '🌿 Votre espace personnel Hormelys est prêt',
-                html: buildCredentialsEmailHtml({
-                    prenom: record.informationsPersonnelles.prenom || '',
-                    slug: record.slug,
-                    email,
-                    password: plainPassword
-                })
+                html,
+                text
             });
         } catch (emailError) {
             // L'account est cree mais l'email n'est pas parti.
