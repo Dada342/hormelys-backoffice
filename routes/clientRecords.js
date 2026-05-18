@@ -125,7 +125,8 @@ function buildCredentialsEmailHtml({ prenom, slug, email, password }) {
 router.get('/', authMiddleware, async (req, res) => {
     try {
         const records = await ClientRecord.find()
-            .select('slug informationsPersonnelles.nom informationsPersonnelles.prenom informationsPersonnelles.email accountActivated createdAt updatedAt appointments')
+            .select('slug informationsPersonnelles.nom informationsPersonnelles.prenom informationsPersonnelles.email accountActivated createdAt updatedAt appointments clientAccountId')
+            .populate('clientAccountId', 'lastLoginAt')
             .sort({ updatedAt: -1 });
         res.json({ clientRecords: records });
     } catch (error) {
