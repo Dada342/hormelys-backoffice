@@ -17,6 +17,20 @@ function addMinutes(timeStr, minutes) {
 }
 
 /**
+ * Vérifie si un mercredi est bloqué pour cause de délai de préparation insuffisant.
+ * Règle : à partir du dimanche 12h, le mercredi suivant n'est plus réservable.
+ */
+function isWednesdayBlockedByPrepTime(dateStr) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    if (date.getDay() !== 3) return false;
+    const precedingSunday = new Date(date);
+    precedingSunday.setDate(date.getDate() - 3);
+    precedingSunday.setHours(12, 0, 0, 0);
+    return new Date() >= precedingSunday;
+}
+
+/**
  * Durées par type de séance
  */
 const SESSION_DURATIONS = {
@@ -47,6 +61,17 @@ router.get('/slots', async (req, res) => {
 
         if (!type || !SESSION_DURATIONS[type]) {
             return res.status(400).json({ message: 'Le paramètre type doit être first_session ou follow_up' });
+        }
+
+        if (isWednesdayBlockedByPrepTime(date)) {
+            return res.json({
+                date,
+                type,
+                duration: SESSION_DURATIONS[type],
+                price: SESSION_PRICES[type],
+                slots: [],
+                message: 'Les réservations pour ce mercredi sont clôturées (délai de préparation)'
+            });
         }
 
         const duration = SESSION_DURATIONS[type];
@@ -251,8 +276,11 @@ router.get('/open-days', async (req, res) => {
         }
 
         // Filtrer les jours en tenant compte des plages Google Calendar
+        // et du délai de préparation pour les mercredis
         const openDays = [];
         for (const [date, slots] of daySlots) {
+            if (isWednesdayBlockedByPrepTime(date)) continue;
+
             const googleBusy = googleBusyByDate[date] || [];
             if (googleBusy.length === 0 || hasAvailableSlotAfterBlocks(slots, googleBusy)) {
                 openDays.push(date);

@@ -10,6 +10,20 @@ const { isGoogleCalendarBusy, createEvent, deleteEvent } = require('../services/
 const { createOrLinkClientRecordFromAppointment, detachAppointmentFromClientRecord } = require('../services/clientRecord');
 
 /**
+ * Vérifie si un mercredi est bloqué pour cause de délai de préparation insuffisant.
+ * Règle : à partir du dimanche 12h, le mercredi suivant n'est plus réservable.
+ */
+function isWednesdayBlockedByPrepTime(dateStr) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    if (date.getDay() !== 3) return false;
+    const precedingSunday = new Date(date);
+    precedingSunday.setDate(date.getDate() - 3);
+    precedingSunday.setHours(12, 0, 0, 0);
+    return new Date() >= precedingSunday;
+}
+
+/**
  * Durées et tarifs par type de séance
  */
 const SESSION_CONFIG = {
@@ -589,6 +603,13 @@ router.post('/book', verifyRecaptcha, async (req, res) => {
         if (appointmentDateTime <= minBookingTime) {
             return res.status(400).json({
                 message: 'Les réservations doivent être effectuées au moins 24 heures à l\'avance'
+            });
+        }
+
+        // Vérifier le délai de préparation pour les mercredis
+        if (isWednesdayBlockedByPrepTime(date)) {
+            return res.status(400).json({
+                message: 'Les réservations pour ce mercredi sont clôturées. Veuillez choisir le mercredi suivant.'
             });
         }
 
