@@ -101,4 +101,54 @@ ${PUBLIC_BASE_URL}`;
     return { html, text };
 }
 
-module.exports = { sendMail, buildClientMessageNotificationEmail };
+/**
+ * Construit l'email de notification envoyé à la cliente quand Nathalia lui répond.
+ * @param {{ prenom: string, content: string, espaceUrl: string }} params
+ * @returns {{ html: string, text: string }}
+ */
+function buildAdminMessageNotificationEmail({ prenom, content, espaceUrl }) {
+    const safeContent = content.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+
+    const text = `Bonjour ${prenom},
+
+Votre naturopathe Nathalia Laffont vous a envoyé un message dans votre espace personnel :
+
+« ${content} »
+
+Accéder à votre espace : ${espaceUrl}
+
+À très bientôt,
+Nathalia Laffont — Naturopathe certifiée
+
+—
+Hormelys — Naturopathie
+${PUBLIC_BASE_URL}`;
+
+    const html = `
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="utf-8"></head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px; background-color: #ffffff;">
+                <h2 style="color: #A13D6C; margin-bottom: 4px;">💬 Nouveau message de Nathalia</h2>
+                <p style="color: #666; margin-top: 0;">Bonjour <strong>${prenom}</strong>, votre naturopathe vous a répondu.</p>
+                <div style="background-color: #F5E8EF; padding: 20px; border-radius: 12px; border-left: 4px solid #A13D6C; margin: 20px 0;">
+                    <p style="margin: 0; font-size: 15px; color: #333;">${safeContent}</p>
+                </div>
+                <p>
+                    <a href="${espaceUrl}" style="display: inline-block; background: linear-gradient(to right, #2C6E63, #3D8B7A); color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">
+                        Voir mon espace personnel →
+                    </a>
+                </p>
+                <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 2px solid #eee;">
+                    <p style="color: #666; font-size: 14px; margin: 5px 0;"><strong>Hormelys — Naturopathie</strong></p>
+                    <a href="${PUBLIC_BASE_URL}" style="color: #A13D6C; font-size: 14px; text-decoration: none;">www.hormelys.com</a>
+                </div>
+            </div>
+        </body>
+        </html>
+    `;
+    return { html, text };
+}
+
+module.exports = { sendMail, buildClientMessageNotificationEmail, buildAdminMessageNotificationEmail };

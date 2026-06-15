@@ -9,7 +9,7 @@ const ClientAccount = require('../models/ClientAccount');
 const Message = require('../models/Message');
 const authMiddleware = require('../middlewares/authMiddleware');
 const { generateUniqueSlug, generateRandomPassword } = require('../services/clientRecord');
-const { sendMail } = require('../services/mailer');
+const { sendMail, buildAdminMessageNotificationEmail } = require('../services/mailer');
 
 // Cloudinary partage la meme config que les articles (initialise globalement par routes/articles.js).
 // Re-config defensif au cas ou ce fichier est charge avant articles.js.
@@ -500,7 +500,7 @@ router.get('/:id/messages', authMiddleware, async (req, res) => {
 
 /**
  * POST /api/admin/client-records/:id/messages
- * L'admin envoie un message à une cliente.
+ * L'admin envoie un message à une cliente. Notifie la cliente par email (non-bloquant).
  */
 router.post('/:id/messages', authMiddleware, async (req, res) => {
     try {
@@ -508,7 +508,8 @@ router.post('/:id/messages', authMiddleware, async (req, res) => {
         if (!content?.trim()) return res.status(400).json({ message: 'Le message ne peut pas être vide' });
         if (content.trim().length > 2000) return res.status(400).json({ message: 'Message trop long (max 2000 caractères)' });
 
-        const record = await ClientRecord.findById(req.params.id).select('_id');
+        const record = await ClientRecord.findById(req.params.id)
+            .select('informationsPersonnelles.email informationsPersonnelles.prenom slug accountActivated');
         if (!record) return res.status(404).json({ message: 'Fiche introuvable' });
 
         const message = new Message({
@@ -517,6 +518,29 @@ router.post('/:id/messages', authMiddleware, async (req, res) => {
             content: content.trim()
         });
         await message.save();
+
+        // Notification email à la cliente (uniquement si l'espace est activé)
+        if (record.accountActivated && record.informationsPersonnelles?.email) {
+            const espaceUrl = `${PUBLIC_BASE_URL}/espace-client/${record.slug}`;
+            setImmediate(async () => {
+                try {
+                    const { html, text } = buildAdminMessageNotificationEmail({
+                        prenom: record.informationsPersonnelles.prenom || '',
+                        content: content.trim(),
+                        espaceUrl
+                    });
+                    await sendMail({
+                        to: record.informationsPersonnelles.email,
+                        subject: '💬 Nathalia vous a répondu sur votre espace Hormelys',
+                        html,
+                        text
+                    });
+                } catch (emailErr) {
+                    console.error('Erreur notification email réponse admin:', emailErr.message);
+                }
+            });
+        }
+
         res.status(201).json({ message });
     } catch (error) {
         console.error('Erreur envoi message admin:', error);
