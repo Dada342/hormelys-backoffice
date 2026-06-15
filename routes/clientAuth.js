@@ -3,7 +3,11 @@ const jwt = require('jsonwebtoken');
 const router = express.Router();
 const ClientAccount = require('../models/ClientAccount');
 const ClientRecord = require('../models/ClientRecord');
+const Message = require('../models/Message');
 const clientAuthMiddleware = require('../middlewares/clientAuthMiddleware');
+const { sendMail, buildClientMessageNotificationEmail } = require('../services/mailer');
+
+const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || 'https://www.hormelys.com';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'votre_secret_jwt';
 const TOKEN_EXPIRY = '24h';
@@ -122,6 +126,77 @@ router.get('/me', clientAuthMiddleware, async (req, res) => {
         res.json({ clientRecord: view });
     } catch (error) {
         console.error('Erreur GET /client-auth/me:', error);
+        res.status(500).json({ message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * GET /api/client-auth/messages
+ * Retourne le fil de messages de la cliente authentifiée et marque les messages admin comme lus.
+ */
+router.get('/messages', clientAuthMiddleware, async (req, res) => {
+    try {
+        const messages = await Message.find({ clientRecordId: req.client.clientRecordId }).sort({ createdAt: 1 });
+        await Message.updateMany(
+            { clientRecordId: req.client.clientRecordId, senderType: 'admin', readAt: null },
+            { readAt: new Date() }
+        );
+        res.json({ messages });
+    } catch (error) {
+        console.error('Erreur récupération messages cliente:', error);
+        res.status(500).json({ message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * POST /api/client-auth/messages
+ * La cliente envoie un message. Déclenche une notification email à Nathalia.
+ */
+router.post('/messages', clientAuthMiddleware, async (req, res) => {
+    try {
+        const { content } = req.body;
+        if (!content?.trim()) return res.status(400).json({ message: 'Le message ne peut pas être vide' });
+        if (content.trim().length > 2000) return res.status(400).json({ message: 'Message trop long (max 2000 caractères)' });
+
+        const record = await ClientRecord.findById(req.client.clientRecordId)
+            .select('informationsPersonnelles.prenom informationsPersonnelles.nom');
+        if (!record) return res.status(404).json({ message: 'Fiche introuvable' });
+
+        const message = new Message({
+            clientRecordId: req.client.clientRecordId,
+            senderType: 'client',
+            content: content.trim()
+        });
+        await message.save();
+
+        // Notification email à Nathalia (non-bloquante : on répond avant même que l'email parte)
+        const naturopathEmail = process.env.NATUROPATH_EMAIL;
+        if (naturopathEmail) {
+            const prenom = record.informationsPersonnelles?.prenom || '';
+            const nom = record.informationsPersonnelles?.nom || '';
+            setImmediate(async () => {
+                try {
+                    const { html, text } = buildClientMessageNotificationEmail({
+                        prenom,
+                        nom,
+                        content: content.trim(),
+                        adminUrl: `${PUBLIC_BASE_URL}/admin`
+                    });
+                    await sendMail({
+                        to: naturopathEmail,
+                        subject: `💬 Nouveau message de ${prenom} ${nom}`,
+                        html,
+                        text
+                    });
+                } catch (emailErr) {
+                    console.error('Erreur notification email nouveau message:', emailErr.message);
+                }
+            });
+        }
+
+        res.status(201).json({ message });
+    } catch (error) {
+        console.error('Erreur envoi message cliente:', error);
         res.status(500).json({ message: 'Erreur serveur' });
     }
 });

@@ -6,6 +6,7 @@ const { v4: uuidv4 } = require('uuid');
 const router = express.Router();
 const ClientRecord = require('../models/ClientRecord');
 const ClientAccount = require('../models/ClientAccount');
+const Message = require('../models/Message');
 const authMiddleware = require('../middlewares/authMiddleware');
 const { generateUniqueSlug, generateRandomPassword } = require('../services/clientRecord');
 const { sendMail } = require('../services/mailer');
@@ -145,6 +146,7 @@ ${PUBLIC_BASE_URL}`;
 /**
  * GET /api/admin/client-records
  * Retourne la liste de toutes les fiches clientes (champs limites pour l'affichage en liste).
+ * Inclut unreadCount : nombre de messages clients non encore lus par l'admin.
  */
 router.get('/', authMiddleware, async (req, res) => {
     try {
@@ -152,7 +154,20 @@ router.get('/', authMiddleware, async (req, res) => {
             .select('slug informationsPersonnelles.nom informationsPersonnelles.prenom informationsPersonnelles.email accountActivated createdAt updatedAt appointments clientAccountId')
             .populate('clientAccountId', 'lastLoginAt')
             .sort({ updatedAt: -1 });
-        res.json({ clientRecords: records });
+
+        const unreadData = await Message.aggregate([
+            { $match: { senderType: 'client', readAt: null } },
+            { $group: { _id: '$clientRecordId', count: { $sum: 1 } } }
+        ]);
+        const unreadMap = {};
+        unreadData.forEach(u => { unreadMap[u._id.toString()] = u.count; });
+
+        const clientRecords = records.map(r => ({
+            ...r.toObject(),
+            unreadCount: unreadMap[r._id.toString()] || 0
+        }));
+
+        res.json({ clientRecords });
     } catch (error) {
         console.error('Erreur récupération fiches clientes:', error);
         res.status(500).json({ message: 'Erreur serveur' });
@@ -466,6 +481,50 @@ router.delete('/:id/documents/:docId', authMiddleware, async (req, res) => {
 });
 
 /**
+ * GET /api/admin/client-records/:id/messages
+ * Retourne le fil de messages d'une fiche et marque les messages client comme lus.
+ */
+router.get('/:id/messages', authMiddleware, async (req, res) => {
+    try {
+        const messages = await Message.find({ clientRecordId: req.params.id }).sort({ createdAt: 1 });
+        await Message.updateMany(
+            { clientRecordId: req.params.id, senderType: 'client', readAt: null },
+            { readAt: new Date() }
+        );
+        res.json({ messages });
+    } catch (error) {
+        console.error('Erreur récupération messages:', error);
+        res.status(500).json({ message: 'Erreur serveur' });
+    }
+});
+
+/**
+ * POST /api/admin/client-records/:id/messages
+ * L'admin envoie un message à une cliente.
+ */
+router.post('/:id/messages', authMiddleware, async (req, res) => {
+    try {
+        const { content } = req.body;
+        if (!content?.trim()) return res.status(400).json({ message: 'Le message ne peut pas être vide' });
+        if (content.trim().length > 2000) return res.status(400).json({ message: 'Message trop long (max 2000 caractères)' });
+
+        const record = await ClientRecord.findById(req.params.id).select('_id');
+        if (!record) return res.status(404).json({ message: 'Fiche introuvable' });
+
+        const message = new Message({
+            clientRecordId: req.params.id,
+            senderType: 'admin',
+            content: content.trim()
+        });
+        await message.save();
+        res.status(201).json({ message });
+    } catch (error) {
+        console.error('Erreur envoi message admin:', error);
+        res.status(500).json({ message: 'Erreur serveur' });
+    }
+});
+
+/**
  * DELETE /api/admin/client-records/:id
  * Supprime la fiche, le ClientAccount associe ET tous les documents Cloudinary.
  * Note : ne touche pas aux Appointments lies, qui restent en base.
@@ -487,6 +546,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
         if (record.clientAccountId) {
             await ClientAccount.findByIdAndDelete(record.clientAccountId);
         }
+        await Message.deleteMany({ clientRecordId: req.params.id });
         await ClientRecord.findByIdAndDelete(req.params.id);
         res.json({ message: 'Fiche supprimée' });
     } catch (error) {
