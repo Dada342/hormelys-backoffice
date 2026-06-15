@@ -719,6 +719,98 @@ router.post('/book', verifyRecaptcha, async (req, res) => {
     }
 });
 
+// POST /api/appointments/book-admin - Réserver un créneau depuis le panel admin (JWT requis, pas de reCAPTCHA)
+router.post('/book-admin', authMiddleware, async (req, res) => {
+    try {
+        const { firstName, lastName, email, phone, date, time } = req.body;
+        const type = 'follow_up';
+
+        if (!firstName || !lastName || !email || !phone || !date || !time) {
+            return res.status(400).json({ message: 'Tous les champs sont obligatoires' });
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            return res.status(400).json({ message: 'Format d\'email invalide' });
+        }
+
+        const config = SESSION_CONFIG[type];
+        const endTime = addMinutes(time, config.duration);
+
+        // Vérifier si le créneau est occupé sur Google Calendar
+        const googleBusy = await isGoogleCalendarBusy(date, time, endTime);
+        if (googleBusy) {
+            return res.status(409).json({ message: 'Ce créneau n\'est pas disponible (Google Agenda)' });
+        }
+
+        // Vérifier la collision avec les RDV existants
+        const isAvailable = await Appointment.isTimeRangeAvailable(date, time, endTime);
+        if (!isAvailable) {
+            return res.status(409).json({ message: 'Ce créneau chevauche un rendez-vous existant' });
+        }
+
+        // Vérifier que le créneau est dans une plage ouverte
+        const openSlots = await AvailabilitySlot.getSlotsForDate(date);
+        const isInOpenSlot = openSlots.some(slot =>
+            time >= slot.startTime && endTime <= slot.endTime
+        );
+        if (!isInOpenSlot) {
+            return res.status(400).json({ message: 'Ce créneau n\'est pas dans une plage de disponibilité' });
+        }
+
+        const cancellationToken = crypto.randomUUID();
+        const appointment = new Appointment({
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
+            email: email.trim().toLowerCase(),
+            phone: phone.trim(),
+            date,
+            time,
+            endTime,
+            type,
+            duration: config.duration,
+            price: config.price,
+            notes: '',
+            status: 'confirmed',
+            cancellationToken
+        });
+
+        await appointment.save();
+
+        const googleEventId = await createGoogleCalendarEvent(appointment);
+        if (googleEventId) {
+            appointment.googleEventId = googleEventId;
+        }
+
+        try {
+            await createOrLinkClientRecordFromAppointment(appointment);
+        } catch (err) {
+            console.error('Erreur création/lien fiche cliente (book-admin):', err);
+        }
+
+        const emailSent = await sendConfirmationEmails(appointment);
+        appointment.emailSent = emailSent;
+        await appointment.save();
+
+        res.status(201).json({
+            message: 'Rendez-vous réservé avec succès',
+            appointment: {
+                id: appointment._id,
+                date: appointment.date,
+                time: appointment.time,
+                endTime: appointment.endTime,
+                type: appointment.type,
+                duration: appointment.duration,
+                price: appointment.price,
+                emailSent: appointment.emailSent
+            }
+        });
+    } catch (error) {
+        console.error('Erreur lors de la réservation admin:', error);
+        res.status(500).json({ message: 'Erreur lors de la réservation' });
+    }
+});
+
 // GET /api/appointments/cancel-by-token/:token - Récupérer les infos du RDV via le token
 router.get('/cancel-by-token/:token', async (req, res) => {
     try {
