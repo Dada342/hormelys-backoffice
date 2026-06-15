@@ -169,29 +169,27 @@ router.post('/messages', clientAuthMiddleware, async (req, res) => {
         });
         await message.save();
 
-        // Notification email à Nathalia (non-bloquante : on répond avant même que l'email parte)
+        // Notification email à Nathalia (awaited : setImmediate ne s'exécute pas de façon fiable sur Vercel serverless)
         const naturopathEmail = process.env.NATUROPATH_EMAIL;
         if (naturopathEmail) {
             const prenom = record.informationsPersonnelles?.prenom || '';
             const nom = record.informationsPersonnelles?.nom || '';
-            setImmediate(async () => {
-                try {
-                    const { html, text } = buildClientMessageNotificationEmail({
-                        prenom,
-                        nom,
-                        content: content.trim(),
-                        adminUrl: `${PUBLIC_BASE_URL}/admin`
-                    });
-                    await sendMail({
-                        to: naturopathEmail,
-                        subject: `💬 Nouveau message de ${prenom} ${nom}`,
-                        html,
-                        text
-                    });
-                } catch (emailErr) {
-                    console.error('Erreur notification email nouveau message:', emailErr.message);
-                }
-            });
+            try {
+                const { html, text } = buildClientMessageNotificationEmail({
+                    prenom,
+                    nom,
+                    content: content.trim(),
+                    adminUrl: `${PUBLIC_BASE_URL}/admin`
+                });
+                await sendMail({
+                    to: naturopathEmail,
+                    subject: `💬 Nouveau message de ${prenom} ${nom}`,
+                    html,
+                    text
+                });
+            } catch (emailErr) {
+                console.error('Erreur notification email nouveau message:', emailErr.message);
+            }
         }
 
         res.status(201).json({ message });

@@ -519,26 +519,24 @@ router.post('/:id/messages', authMiddleware, async (req, res) => {
         });
         await message.save();
 
-        // Notification email à la cliente (uniquement si l'espace est activé)
+        // Notification email à la cliente (awaited : setImmediate ne s'exécute pas de façon fiable sur Vercel serverless)
         if (record.accountActivated && record.informationsPersonnelles?.email) {
             const espaceUrl = `${PUBLIC_BASE_URL}/espace-client/${record.slug}`;
-            setImmediate(async () => {
-                try {
-                    const { html, text } = buildAdminMessageNotificationEmail({
-                        prenom: record.informationsPersonnelles.prenom || '',
-                        content: content.trim(),
-                        espaceUrl
-                    });
-                    await sendMail({
-                        to: record.informationsPersonnelles.email,
-                        subject: '💬 Nathalia vous a répondu sur votre espace Hormelys',
-                        html,
-                        text
-                    });
-                } catch (emailErr) {
-                    console.error('Erreur notification email réponse admin:', emailErr.message);
-                }
-            });
+            try {
+                const { html, text } = buildAdminMessageNotificationEmail({
+                    prenom: record.informationsPersonnelles.prenom || '',
+                    content: content.trim(),
+                    espaceUrl
+                });
+                await sendMail({
+                    to: record.informationsPersonnelles.email,
+                    subject: '💬 Nathalia vous a répondu sur votre espace Hormelys',
+                    html,
+                    text
+                });
+            } catch (emailErr) {
+                console.error('Erreur notification email réponse admin:', emailErr.message);
+            }
         }
 
         res.status(201).json({ message });
