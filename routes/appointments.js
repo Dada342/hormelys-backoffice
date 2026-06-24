@@ -1031,7 +1031,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
         await appointment.save();
 
         // Mettre à jour Google Calendar si l'événement existe
-        if (appointment.googleEventId && calendar) {
+        if (appointment.googleEventId) {
             try {
                 await deleteGoogleCalendarEvent(appointment.googleEventId);
                 const newGoogleEventId = await createGoogleCalendarEvent(appointment);
