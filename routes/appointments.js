@@ -538,6 +538,129 @@ const sendConfirmationEmails = async (appointment) => {
     }
 };
 
+/**
+ * Envoie un email de reprogrammation à la cliente uniquement.
+ * Nathalia n'est pas notifiée car c'est elle qui effectue la modification.
+ */
+const sendRescheduleEmailToClient = async (appointment) => {
+    const { firstName, lastName, email, phone, date, time, type, duration, price, endTime, cancellationToken, notes } = appointment;
+    const frontendUrl = process.env.FRONTEND_URL || 'https://www.hormelys.com';
+    const cancellationUrl = `${frontendUrl}/rendez-vous/annulation?token=${cancellationToken}`;
+    const rescheduleUrl = `${frontendUrl}/rendez-vous/reprogrammer?token=${cancellationToken}`;
+    const config = SESSION_CONFIG[type] || SESSION_CONFIG.discovery_call;
+
+    const appointmentDate = new Date(date + 'T' + time);
+    const formattedDate = appointmentDate.toLocaleDateString('fr-FR', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    });
+
+    const isConsultation = type === 'first_session' || type === 'follow_up';
+    const durationLabel = duration === 90 ? '1h30' : duration === 60 ? '1h' : '30 minutes';
+    const icsContent = generateICS(appointment);
+
+    try {
+        await transporter.sendMail({
+            from: process.env.SMTP_FROM,
+            to: email,
+            subject: `Votre rendez-vous a été reprogrammé - Hormelys`,
+            attachments: [{
+                filename: 'rendez-vous-hormelys.ics',
+                content: icsContent,
+                contentType: 'text/calendar; charset=utf-8; method=PUBLISH'
+            }],
+            html: `
+                <!DOCTYPE html>
+                <html>
+                <head><meta charset="utf-8"><title>Reprogrammation de rendez-vous</title></head>
+                <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0;">
+                    <div style="max-width: 600px; margin: 0 auto; padding: 20px; background-color: #ffffff;">
+                        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 30px;">
+                            <tr>
+                                <td align="center" style="padding: 20px;">
+                                    <img src="${frontendUrl}/assets/logohormelys1.webp" alt="Hormelys" width="200" style="max-width: 200px; display: block;">
+                                </td>
+                            </tr>
+                        </table>
+
+                        <h1 style="color: #2C6E63; text-align: center; margin-bottom: 20px;">
+                            📅 Rendez-vous reprogrammé
+                        </h1>
+
+                        <p style="font-size: 16px; margin-bottom: 15px;">
+                            Bonjour <strong>${firstName}</strong>,
+                        </p>
+
+                        <p style="font-size: 16px; margin-bottom: 20px;">
+                            Votre rendez-vous a été reprogrammé. Voici vos nouveaux horaires :
+                        </p>
+
+                        <div style="background-color: #f8f9fa; padding: 25px; border-radius: 12px; margin: 25px 0; border-left: 5px solid #2C6E63;">
+                            <h3 style="margin-top: 0; color: #2C6E63; font-size: 18px;">Nouveau rendez-vous</h3>
+
+                            <p style="margin: 12px 0 6px 0; color: #555; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Date</p>
+                            <p style="margin: 0; color: #333; font-size: 16px; font-weight: bold;">${formattedDate}</p>
+
+                            <p style="margin: 16px 0 6px 0; color: #555; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Horaire</p>
+                            <p style="margin: 0; color: #333; font-size: 16px; font-weight: bold;">${time} → ${endTime} (${durationLabel})</p>
+
+                            <p style="margin: 16px 0 6px 0; color: #555; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Type</p>
+                            <p style="margin: 0; color: #333; font-size: 16px; font-weight: bold;">${config.label}</p>
+
+                            ${isConsultation ? `
+                            <p style="margin: 16px 0 6px 0; color: #555; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Lieu</p>
+                            <p style="margin: 0; color: #333; font-size: 16px; font-weight: bold;">Pôle Santé de Gignac — Box 203, 2e étage</p>
+                            <p style="margin: 4px 0 0 0; color: #555; font-size: 14px;">280 avenue de Lodève — 34150 GIGNAC</p>
+                            ` : ''}
+                        </div>
+
+                        <div style="background-color: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107;">
+                            <p style="margin: 0; color: #856404;">
+                                ⚠️ <strong>Important :</strong> Si vous devez annuler ce rendez-vous, merci de le faire au moins 24h à l'avance.
+                            </p>
+                        </div>
+
+                        <div style="text-align: center; margin: 25px 0;">
+                            <a href="${rescheduleUrl}" style="display: inline-block; padding: 12px 30px; background-color: #2C6E63; color: #ffffff; text-decoration: none; border-radius: 8px; font-size: 14px; font-weight: bold; margin-right: 10px;">
+                                Reprogrammer mon rendez-vous
+                            </a>
+                        </div>
+                        <div style="text-align: center; margin: 10px 0 25px 0;">
+                            <a href="${cancellationUrl}" style="display: inline-block; padding: 10px 24px; background-color: transparent; color: #dc3545; text-decoration: none; border-radius: 8px; font-size: 13px; font-weight: bold; border: 2px solid #dc3545;">
+                                Annuler mon rendez-vous
+                            </a>
+                        </div>
+
+                        <p style="font-size: 16px; margin-top: 30px; color: #A13D6C; font-weight: bold;">
+                            À bientôt ! 🌿
+                        </p>
+
+                        <div style="margin-top: 30px; padding: 20px; background-color: #f5f5f5; border-radius: 8px;">
+                            <p style="margin: 0; font-size: 16px;">
+                                <strong style="color: #A13D6C;">Nathalia Laffont</strong><br>
+                                <em>Naturopathe certifiée</em>
+                            </p>
+                        </div>
+
+                        <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 2px solid #eee;">
+                            <p style="color: #666; font-size: 14px; margin: 5px 0;"><strong>Hormelys - Naturopathie</strong></p>
+                            <p style="color: #666; font-size: 14px; margin: 5px 0;">280 Avenue de Lodève, 34150 Gignac</p>
+                            <p style="color: #666; font-size: 14px; margin: 5px 0;">
+                                <a href="https://www.hormelys.com" style="color: #A13D6C; text-decoration: none;">🌐 www.hormelys.com</a>
+                            </p>
+                        </div>
+                    </div>
+                </body>
+                </html>
+            `
+        });
+        console.log('✅ Email de reprogrammation envoyé à:', email);
+        return true;
+    } catch (error) {
+        console.error('❌ Erreur envoi email reprogrammation:', error.message);
+        return false;
+    }
+};
+
 // GET /api/appointments/availability - Récupérer les créneaux réservés
 router.get('/availability', async (req, res) => {
     try {
@@ -1042,6 +1165,11 @@ router.put('/:id', authMiddleware, async (req, res) => {
             } catch (calError) {
                 console.error('Erreur mise à jour Google Calendar:', calError.message);
             }
+        }
+
+        // Notifier la cliente par email uniquement si la date ou l'heure a changé
+        if (date || time) {
+            await sendRescheduleEmailToClient(appointment);
         }
 
         res.json({
