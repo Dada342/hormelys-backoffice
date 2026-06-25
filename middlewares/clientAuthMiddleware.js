@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'votre_secret_jwt';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 /**
  * Middleware d'authentification cliente.

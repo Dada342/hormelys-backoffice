@@ -2,7 +2,7 @@
 const jwt = require('jsonwebtoken');
 
 // Charger la clé secrète depuis les variables d'environnement
-const JWT_SECRET = process.env.JWT_SECRET || 'votre_secret_jwt';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 const authMiddleware = (req, res, next) => {
     // Extraire le token des en-têtes d'autorisation

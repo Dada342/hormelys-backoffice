@@ -1,7 +1,8 @@
 const express = require('express');
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
-const { v4: uuidv4 } = require('uuid'); // Pour générer des noms uniques pour les fichiers
+const mongoose = require('mongoose');
+const { v4: uuidv4 } = require('uuid');
 const router = express.Router();
 const Article = require('../models/Article');
 const { generateSlug } = require('../models/Article');
@@ -36,7 +37,7 @@ const uploadToCloudinary = (file) => {
 };
 
 // Route pour créer un nouvel article avec une image
-router.post('/', upload.single('image'), async (req, res) => {
+router.post('/', authMiddleware, upload.single('image'), async (req, res) => {
     try {
         const { title, description, content, category, published } = req.body;
         let imageUrl = null;
@@ -101,6 +102,9 @@ router.get('/popular', async (req, res) => {
 
 // Incrémenter le nombre de vues d'un article (PLACER CETTE ROUTE AVANT `/api/articles/:id`)
 router.put('/:id/views', async (req, res) => {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+        return res.status(400).json({ error: 'Identifiant article invalide' });
+    }
     try {
         const articleId = req.params.id;
 
@@ -158,6 +162,9 @@ router.post('/migrate-slugs', authMiddleware, async (req, res) => {
 
 // Récupérer un article par ID (PLACER CETTE ROUTE APRÈS LES AUTRES ROUTES SPÉCIFIQUES)
 router.get('/:id', async (req, res) => {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+        return res.status(400).json({ error: 'Identifiant article invalide' });
+    }
     try {
         const article = await Article.findById(req.params.id);
         if (!article) return res.status(404).json({ message: 'Article not found' });
@@ -169,6 +176,9 @@ router.get('/:id', async (req, res) => {
 
 // Basculer le statut de publication d'un article (toggle) - DOIT ÊTRE AVANT /:id
 router.put('/:id/toggle-publish', authMiddleware, async (req, res) => {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+        return res.status(400).json({ error: 'Identifiant article invalide' });
+    }
     try {
         const { published } = req.body;
         console.log(`Toggle publish pour article ${req.params.id}: ${published}`);
@@ -204,6 +214,9 @@ router.put('/:id/toggle-publish', authMiddleware, async (req, res) => {
 
 // Mettre à jour un article avec un fichier (par exemple une image)
 router.put('/:id', authMiddleware, upload.single('image'), async (req, res) => {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+        return res.status(400).json({ error: 'Identifiant article invalide' });
+    }
     try {
         const { title, description, content, category, published, publishedDate } = req.body;
         let imageUrl = null;
@@ -243,7 +256,10 @@ router.put('/:id', authMiddleware, upload.single('image'), async (req, res) => {
 });
 
 // Dépublier un article
-router.put('/:id/unpublish', async (req, res) => {
+router.put('/:id/unpublish', authMiddleware, async (req, res) => {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+        return res.status(400).json({ error: 'Identifiant article invalide' });
+    }
     try {
         const updatedArticle = await Article.findByIdAndUpdate(
             req.params.id,
@@ -260,7 +276,10 @@ router.put('/:id/unpublish', async (req, res) => {
 });
 
 // Supprimer un article
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authMiddleware, async (req, res) => {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+        return res.status(400).json({ error: 'Identifiant article invalide' });
+    }
     try {
         await Article.findByIdAndDelete(req.params.id);
         res.json({ message: 'Article deleted successfully' });

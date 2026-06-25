@@ -1,13 +1,14 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const User = require('../models/User'); // modèle User
+const User = require('../models/User');
+const authMiddleware = require('../middlewares/authMiddleware');
 const router = express.Router();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'votre_secret_jwt';
+const JWT_SECRET = process.env.JWT_SECRET;
 
-// Route d'inscription
-router.post('/register', async (req, res) => {
+// Route d'inscription — réservée aux admins existants
+router.post('/register', authMiddleware, async (req, res) => {
   try {
     const { username, email, password } = req.body;
 
