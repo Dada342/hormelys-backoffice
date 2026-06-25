@@ -288,7 +288,7 @@ router.get('/', async (req, res) => {
         // Limiter le nombre de résultats
         const articles = await Article.find(query)
             .sort(sortOption)
-            .limit(parseInt(limit) || 0); // 0 signifie pas de limite si aucun paramètre "limit" n'est passé
+            .limit(limit !== undefined ? parseInt(limit) : 50);
 
         res.status(200).json(articles);
     } catch (error) {
