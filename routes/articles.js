@@ -42,23 +42,8 @@ router.post('/', authMiddleware, upload.single('image'), async (req, res) => {
         const { title, description, content, category, published } = req.body;
         let imageUrl = null;
 
-        // Si une image est fournie, la télécharger sur Cloudinary
         if (req.file) {
-            const uniqueFilename = `${uuidv4()}-${req.file.originalname}`;
-            const uploadResult = await new Promise((resolve, reject) => {
-                const uploadStream = cloudinary.uploader.upload_stream(
-                    { public_id: `articles/${uniqueFilename}` },
-                    (error, result) => {
-                        if (error) {
-                            reject(new Error(`Cloudinary error: ${error.message}`));
-                        } else {
-                            resolve(result);
-                        }
-                    }
-                );
-                uploadStream.end(req.file.buffer);
-            });
-            imageUrl = uploadResult.secure_url; // Utilisez secure_url ici
+            imageUrl = await uploadToCloudinary(req.file);
         }
 
         const newArticle = new Article({
@@ -71,7 +56,6 @@ router.post('/', authMiddleware, upload.single('image'), async (req, res) => {
         });
 
         await newArticle.save();
-        console.log('URL de l\'image enregistrée :', newArticle.imageUrl);
         res.status(201).json(newArticle);
     } catch (error) {
         console.error("Erreur lors de la création de l'article :", error);
@@ -82,17 +66,12 @@ router.post('/', authMiddleware, upload.single('image'), async (req, res) => {
 // Récupérer les articles populaires (PLACER CETTE ROUTE AVANT `/api/articles/:id`)
 router.get('/popular', async (req, res) => {
     try {
-        console.log("Requête reçue pour récupérer les articles populaires");
-
-        // Récupérer les articles avec plus d'une vue
         const popularArticles = await Article.find({ views: { $gt: 1 } }).sort({ views: -1 });
 
         if (!popularArticles || popularArticles.length === 0) {
-            console.log("Aucun article populaire trouvé.");
             return res.status(404).json({ message: 'Aucun article populaire trouvé' });
         }
 
-        console.log("Nombre d'articles populaires trouvés :", popularArticles.length);
         res.status(200).json(popularArticles);
     } catch (error) {
         console.error("Erreur lors de la récupération des articles populaires :", error);
@@ -181,21 +160,16 @@ router.put('/:id/toggle-publish', authMiddleware, async (req, res) => {
     }
     try {
         const { published } = req.body;
-        console.log(`Toggle publish pour article ${req.params.id}: ${published}`);
 
-        // Récupérer l'article actuel pour vérifier s'il a déjà été publié
         const currentArticle = await Article.findById(req.params.id);
         if (!currentArticle) {
             return res.status(404).json({ message: 'Article not found' });
         }
 
-        // Préparer les champs à mettre à jour
         const updateFields = { published: published };
 
-        // Si on publie l'article pour la première fois, définir publishedDate
         if (published && !currentArticle.publishedDate) {
             updateFields.publishedDate = new Date();
-            console.log('Première publication - définition de publishedDate');
         }
 
         const updatedArticle = await Article.findByIdAndUpdate(
@@ -204,7 +178,6 @@ router.put('/:id/toggle-publish', authMiddleware, async (req, res) => {
             { new: true }
         );
 
-        console.log(`Article mis à jour:`, updatedArticle);
         res.json(updatedArticle);
     } catch (error) {
         console.error('Erreur lors du basculement du statut:', error);
