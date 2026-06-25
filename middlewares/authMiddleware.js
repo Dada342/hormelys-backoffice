@@ -22,6 +22,11 @@ const authMiddleware = (req, res, next) => {
             return res.status(401).json({ error: 'Token invalide.' });
         }
 
+        // Vérifier que le token appartient bien à un admin
+        if (decoded.role !== 'admin') {
+            return res.status(403).json({ error: 'Accès réservé aux administrateurs.' });
+        }
+
         // Ajouter les informations de l'utilisateur décodées à la requête
         req.user = decoded;
         next(); // Continuer vers la route suivante
