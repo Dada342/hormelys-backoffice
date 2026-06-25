@@ -2,15 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Appointment = require('../models/Appointment');
 const nodemailer = require('nodemailer');
-
-/**
- * Durées et tarifs par type de séance (identique à appointments.js)
- */
-const SESSION_CONFIG = {
-    discovery_call: { duration: 30, price: 0, label: 'Appel découverte gratuit' },
-    first_session: { duration: 90, price: 65, label: 'Première séance (1h30)' },
-    follow_up: { duration: 60, price: 55, label: 'Séance de suivi (1h)' }
-};
+const { SESSION_CONFIG } = require('../services/appointmentRules');
 
 /**
  * Configuration du transporteur SMTP

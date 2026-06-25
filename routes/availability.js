@@ -4,17 +4,7 @@ const AvailabilitySlot = require('../models/AvailabilitySlot');
 const Appointment = require('../models/Appointment');
 const authMiddleware = require('../middlewares/authMiddleware');
 const { getGoogleCalendarBusySlots, getGoogleCalendarBusySlotsForRange } = require('../services/googleCalendar');
-
-/**
- * Calcule l'heure de fin à partir d'une heure de début et d'une durée en minutes
- */
-function addMinutes(timeStr, minutes) {
-    const [h, m] = timeStr.split(':').map(Number);
-    const totalMinutes = h * 60 + m + minutes;
-    const newH = Math.floor(totalMinutes / 60).toString().padStart(2, '0');
-    const newM = (totalMinutes % 60).toString().padStart(2, '0');
-    return `${newH}:${newM}`;
-}
+const { addMinutes } = require('../services/appointmentRules');
 
 /**
  * Vérifie si un mercredi est bloqué pour cause de délai de préparation insuffisant.
