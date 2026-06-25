@@ -28,7 +28,7 @@ function isWednesdayBlockedByPrepTime(dateStr) {
  */
 const SESSION_CONFIG = {
     discovery_call: { duration: 30, price: 0, label: 'Appel découverte gratuit' },
-    first_session: { duration: 90, price: 65, label: 'Première séance (1h30)' },
+    first_session: { duration: 90, calendarDuration: 120, price: 65, label: 'Première séance (1h30)' },
     follow_up: { duration: 60, price: 55, label: 'Séance de suivi (1h)' }
 };
 
@@ -60,7 +60,7 @@ async function createGoogleCalendarEvent(appointment) {
             timeZone: 'Europe/Paris',
         },
         end: {
-            dateTime: `${date}T${endTime}:00`,
+            dateTime: `${date}T${addMinutes(time, config.calendarDuration || config.duration)}:00`,
             timeZone: 'Europe/Paris',
         },
         colorId: '6', // Mandarine - identifie visuellement les RDV crees via le site
