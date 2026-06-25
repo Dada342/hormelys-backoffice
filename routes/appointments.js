@@ -471,7 +471,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 });
 
 // DELETE /api/appointments/:id/cancel - Annuler et supprimer un rendez-vous
-router.delete('/:id/cancel', async (req, res) => {
+router.delete('/:id/cancel', authMiddleware, async (req, res) => {
     try {
         const appointment = await Appointment.findById(req.params.id);
 
