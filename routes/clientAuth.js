@@ -9,7 +9,7 @@ const { sendMail, buildClientMessageNotificationEmail } = require('../services/m
 
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || 'https://www.hormelys.com';
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const { JWT_SECRET } = require('../config/env');
 const TOKEN_EXPIRY = '24h';
 
 /**

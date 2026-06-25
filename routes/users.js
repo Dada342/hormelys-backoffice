@@ -5,7 +5,7 @@ const User = require('../models/User');
 const authMiddleware = require('../middlewares/authMiddleware');
 const router = express.Router();
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const { JWT_SECRET } = require('../config/env');
 
 // Route d'inscription — réservée aux admins existants
 router.post('/register', authMiddleware, async (req, res) => {
