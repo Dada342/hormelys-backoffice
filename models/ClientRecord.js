@@ -122,9 +122,8 @@ const clientRecordSchema = new mongoose.Schema({
 // Index unique sur l'email — sert de cle metier pour matcher les RDVs futurs et eviter les doublons
 clientRecordSchema.index({ 'informationsPersonnelles.email': 1 }, { unique: true });
 
-clientRecordSchema.pre('save', function (next) {
+clientRecordSchema.pre('save', async function() {
     this.updatedAt = new Date();
-    next();
 });
 
 module.exports = mongoose.model('ClientRecord', clientRecordSchema);

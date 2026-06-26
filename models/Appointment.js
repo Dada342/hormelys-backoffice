@@ -87,9 +87,8 @@ const appointmentSchema = new mongoose.Schema({
 appointmentSchema.index({ date: 1, time: 1 });
 
 // Middleware pour mettre à jour updatedAt
-appointmentSchema.pre('save', function(next) {
+appointmentSchema.pre('save', async function() {
     this.updatedAt = new Date();
-    next();
 });
 
 // Méthode pour formater la date et l'heure
